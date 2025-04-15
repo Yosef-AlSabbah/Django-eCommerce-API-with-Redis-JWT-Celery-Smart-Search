@@ -1,20 +1,5 @@
-import os
-import uuid
+from ecommerce_api.utils.file_handling import upload_to_unique
 
-
-def upload_to_uniqe(instance, filename, directory):
-    ext = filename.split('.')[-1]
-    return os.path.join(f"{directory}/", f"{uuid.uuid4()}.{ext}")
-
-
-def product_upload_to_unique(instance, filename):
-    """
-    Generate a unique file name for the product image.
-    :param instance:
-    :param filename:
-    :return:
-    """
-    return upload_to_uniqe(instance, filename, directory="products/")
 
 def profile_upload_to_unique(instance, filename):
     """
@@ -23,4 +8,4 @@ def profile_upload_to_unique(instance, filename):
     :param filename:
     :return:
     """
-    return upload_to_uniqe(instance, filename, directory="profiles/")
+    return upload_to_unique(instance, filename, directory="profiles/")

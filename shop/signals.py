@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
-from api.models import Category
+from .models import Category
 
 
 @receiver([post_save, post_delete], sender=Category)

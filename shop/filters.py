@@ -2,7 +2,7 @@ from django.contrib.postgres.search import TrigramSimilarity
 from django_filters import FilterSet
 from rest_framework.filters import BaseFilterBackend
 
-from api.models import Product
+from .models import Product
 
 
 class ProductFilter(FilterSet):

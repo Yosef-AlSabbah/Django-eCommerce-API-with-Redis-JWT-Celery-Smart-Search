@@ -1,7 +1,7 @@
 import redis
 from django.conf import settings
 
-from api.models import Product
+from .models import Product
 
 # connect to redis
 r = redis.Redis(
