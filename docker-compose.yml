@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres
+    restart: always
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=eCommerce
+      - POSTGRES_USER=eCommerce
+      - POSTGRES_PASSWORD=0592876798
+
+  cache:
+    image: redis
+    restart: always
+    volumes:
+      - ./data/cache:/data
+
+  web:
+    build: .
+    command: [ "./wait-for-it.sh", "db:5432", "--",
+               "uwsgi", "--ini", "/code/config/uwsgi/uwsgi.ini" ]
+    restart: always
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=ecommerce_api.settings.prod
+      - POSTGRES_DB=eCommerce
+      - POSTGRES_USER=eCommerce
+      - POSTGRES_PASSWORD=0592876798
+    depends_on:
+      - db
+      - cache
+
+  nginx:
+   image: nginx
+   restart: always
+   volumes:
+   - ./config/nginx:/etc/nginx/templates
+   - .:/code
+   ports:
+   - "80:80"

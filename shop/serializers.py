@@ -11,7 +11,12 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    category = CategorySerializer()
+    # Use PrimaryKeyRelatedField for input and CategorySerializer for output
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(),
+        write_only=True
+    )
+    category_detail = CategorySerializer(source='category', read_only=True)
 
     tags = serializers.ListField(
         child=serializers.CharField(),
@@ -27,21 +32,18 @@ class ProductSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
     def create(self, validated_data):
-        # Custom create method to handle tags
-        instance = super().create(**validated_data)  # Create the Product instance
-        tags = validated_data.pop('tags', None)  # Extract tags from validated data
+        tags = validated_data.pop('tags', None)
+        instance = super().create(validated_data)
         if tags:
-            instance.tags.set(*tags)  # Assign tags to the product
+            instance.tags.set(*tags)
         return instance
 
     def update(self, instance, validated_data):
-        # Custom update method to handle tags
-        tags = validated_data.pop('tags', None)  # Extract tags from validated data
+        tags = validated_data.pop('tags', None)
         if tags:
-            instance.tags.set(*tags)  # Replace existing tags with new ones
+            instance.tags.set(*tags)
         else:
-            instance.tags.clear()  # Clear tags if none are provided
-
+            instance.tags.clear()
         return super().update(instance, validated_data)
 
     class Meta:
@@ -55,5 +57,6 @@ class ProductSerializer(serializers.ModelSerializer):
             'stock',
             'image',
             'category',
+            'category_detail',
             'tags'
         ]

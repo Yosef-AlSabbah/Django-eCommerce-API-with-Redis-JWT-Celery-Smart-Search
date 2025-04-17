@@ -29,23 +29,21 @@ class ApiResponseRenderer(renderers.JSONRenderer):
             bytes: The rendered response in JSON format.
         """
         # Extract the response object from the renderer context
-        response = renderer_context['response'] if renderer_context else None
+        response = renderer_context.get('response', None) if renderer_context else None
 
-        # Check if the response is already rendered (to avoid double-wrapping)
-        if hasattr(response, 'is_rendered') and response.is_rendered:
+        # If data already has the expected keys, assume it's been wrapped
+        if isinstance(data, dict) and "success" in data and "message" in data:
             return super().render(data, accepted_media_type, renderer_context)
 
         # Handle error responses (status codes >= 400)
         if response and response.status_code >= 400:
-            # Ensure `data` is a dictionary before attempting to pop keys
             if isinstance(data, dict):
-                message = data.pop('message', 'An error occurred')  # Default error message
-                errors = data if data else None  # Include remaining data as error details
+                message = data.pop('message', 'An error occurred')
+                errors = data if data else None
             else:
                 message = 'An error occurred'
                 errors = None
 
-            # Wrap the error response in the standardized format
             return super().render(
                 ApiResponse.error(
                     message=message,
@@ -58,7 +56,7 @@ class ApiResponseRenderer(renderers.JSONRenderer):
 
         # Handle success responses (status codes < 400)
         return super().render(
-            ApiResponse.success(data=data).data,  # Wrap the data in the success format
+            ApiResponse.success(data=data).data,
             accepted_media_type,
             renderer_context
         )

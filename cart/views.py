@@ -52,7 +52,7 @@ class CartAPIView(APIView):
             Response: A JSON response indicating the operation's success.
         """
         cart = Cart(request)
-        product = get_object_or_404(Product, id=product_id)
+        product = get_object_or_404(Product, product_id=product_id)
         try:
             quantity = int(request.data.get('quantity', 1))
             override_quantity = request.data.get('override', False)
@@ -79,7 +79,7 @@ class CartAPIView(APIView):
             Response: A JSON response indicating the operation's success.
         """
         cart = Cart(request)
-        product = get_object_or_404(Product, id=product_id)
+        product = get_object_or_404(Product, product_id=product_id)
         cart.remove(product)
         return Response(
             {'message': 'Product removed from cart'},

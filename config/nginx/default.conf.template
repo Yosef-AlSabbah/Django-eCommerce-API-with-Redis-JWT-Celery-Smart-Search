@@ -1,0 +1,21 @@
+# upstream for uWSGI
+upstream uwsgi_app {
+ server unix:/code/educa/uwsgi_app.sock;
+}
+server {
+     listen 80;
+     server_name www.eCommerce.com eCommerce.com;
+     error_log stderr warn;
+     access_log /dev/stdout main;
+
+     location / {
+         include /etc/nginx/uwsgi_params;
+         uwsgi_pass uwsgi_app;
+     }
+      location /static/ {
+         alias /code/ecommerce_api/static/;
+      }
+         location /media/ {
+         alias /code/ecommerce_api/media/;
+      }
+}

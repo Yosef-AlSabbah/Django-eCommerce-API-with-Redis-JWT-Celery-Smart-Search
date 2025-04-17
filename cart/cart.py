@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.conf import settings
 
+from coupons.models import Coupon
 from shop.models import Product
 
 
@@ -23,6 +24,8 @@ class Cart:
             # save an empty cart in the session
             cart = self.session[settings.CART_SESSION_ID] = {}
         self.cart = cart
+        # store current applied coupon
+        self.coupon_id = self.session.get('coupon_id')
 
     def add(self, product, quantity=1, override_quantity=False):
         """
@@ -34,7 +37,7 @@ class Cart:
             override_quantity: If True, replace the current quantity with the given quantity.
                                If False, increment the current quantity by the given amount.
         """
-        product_id = str(product.id)
+        product_id = str(product.product_id)
         if product_id not in self.cart:
             self.cart[product_id] = {
                 'quantity': 0,
@@ -53,7 +56,7 @@ class Cart:
         Args:
             product: The product object to remove from the cart.
         """
-        product_id = str(product.id)
+        product_id = str(product.product_id)
         if product_id in self.cart:
             del self.cart[product_id]
             self.save()
@@ -66,10 +69,10 @@ class Cart:
         """
         product_ids = self.cart.keys()
         # get the product objects and add them to the cart
-        products = Product.objects.filter(id__in=product_ids)
+        products = Product.objects.filter(product_id__in=product_ids)
         cart = self.cart.copy()
         for product in products:
-            cart[str(product.id)]['product'] = product
+            cart[str(product.product_id)]['product'] = product
         for item in cart.values():
             item['price'] = Decimal(item['price'])
             item['total_price'] = item['price'] * item['quantity']
@@ -108,3 +111,42 @@ class Cart:
         """
         del self.session[settings.CART_SESSION_ID]
         self.save()
+
+    @property
+    def coupon(self):
+        """
+        Retrieve the currently applied coupon.
+
+        Returns:
+            Coupon: The applied coupon object if it exists and is valid.
+            None: If no coupon is applied or the coupon does not exist.
+        """
+        if self.coupon_id:
+            try:
+                return Coupon.objects.get(id=self.coupon_id)
+
+            except Coupon.DoesNotExist:
+                pass
+            return None
+
+    def get_discount(self):
+        """
+        Calculate the discount amount based on the applied coupon.
+
+        Returns:
+            Decimal: The discount amount to be subtracted from the total price.
+        """
+        if self.coupon:
+            return (
+                    self.coupon.discount / Decimal(100)
+            ) * self.get_total_price()
+        return Decimal(0)
+
+    def get_total_price_after_discount(self):
+        """
+        Calculate the total price of the cart after applying the discount.
+
+        Returns:
+            Decimal: The total price after the discount is applied.
+        """
+        return self.get_total_price() - self.get_discount()

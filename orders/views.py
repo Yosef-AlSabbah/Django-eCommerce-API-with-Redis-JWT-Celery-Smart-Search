@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
 from cart.cart import Cart
-from tasks import send_order_confirmation_email
+from .tasks import send_order_confirmation_email
 from .models import Order, OrderItem
 from .serializers import OrderSerializer
 
