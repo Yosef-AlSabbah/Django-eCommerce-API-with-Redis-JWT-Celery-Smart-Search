@@ -1,0 +1,31 @@
+{% block subject %} Confirm your email address {% endblock %}
+
+{% block plain %}
+    Hello {{ user.username }},
+
+    Thank you for signing up with us!
+
+    To complete your registration, please confirm your email address by clicking the link below:
+
+    {{ activation_url }}
+
+    If you didn't request this, please ignore this email.
+
+    Thank you,
+    Hypex Team
+{% endblock %}
+
+{% block html %}
+    <html lang="">
+    <body>
+    <h2>Hello {{ user.username }},</h2>
+    <p>Thank you for signing up with us!</p>
+    <p>To complete your registration, please confirm your email address by clicking the button below:</p>
+    <a href="{{ activation_url }}"
+       style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none;">Confirm Your
+        Email</a>
+    <p>If you didn't request this, please ignore this email.</p>
+    <p>Thank you,<br>Your Company Team</p>
+    </body>
+    </html>
+{% endblock %}
