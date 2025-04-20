@@ -14,6 +14,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from decouple import config
+from django.urls import reverse_lazy
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -32,11 +33,14 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'django.contrib.sites',
+    'django.contrib.sitemaps',
     'django.contrib.staticfiles',
     'django.contrib.postgres',
     'taggit',
@@ -44,11 +48,20 @@ INSTALLED_APPS = [
     'debug_toolbar',
     'django_filters',
     'rest_framework',
+    'rest_framework.authtoken',
+    'django_redis',
+    'social_django',
+    'djoser',
+    'simple_history',
+    'django_extensions',
     'api.apps.ApiConfig',
     'shop.apps.ShopConfig',
     'cart.apps.CartConfig',
     'orders.apps.OrdersConfig',
-    'coupons.apps.CouponsConfig',  # Ensure this is included
+    'coupons.apps.CouponsConfig',
+    'chat.apps.ChatConfig',
+    'payment.apps.PaymentConfig',
+    'account.apps.AccountConfig',
 ]
 
 MIDDLEWARE = [
@@ -134,7 +147,7 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-AUTH_USER_MODEL = 'api.User'
+AUTH_USER_MODEL = 'account.UserAccount'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -158,7 +171,12 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '400/day',
         'user': '1000/day',
-    }
+    },
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.MultiPartParser',
+        'rest_framework.parsers.FormParser',
+    ],
 }
 
 SIMPLE_JWT = {
@@ -195,11 +213,76 @@ REDIS_DB = 2
 
 CART_SESSION_ID = 'cart'
 
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 EMAIL_HOST_USER = config('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+
+SITE_ID = 1
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    },
+}
+ASGI_APPLICATION = 'ecommerce_api.asgi.application'
+
+STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY')
+STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY')
+STRIPE_API_VERSION = '2024-04-10'
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'social_core.backends.google.GoogleOAuth2',
+]
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = config('GOOGLE_OAUTH2_KEY')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = config('GOOGLE_OAUTH2_SECRET')
+
+DJOSER = {
+    'HIDE_USERS': True,
+    'EMAIL': {
+        'activation': 'account.emails.CustomActivationEmail',  # Path to your custom class
+    },
+    # Specifies the custom serializers
+    'SERIALIZERS': {
+        'user_create': 'users.api.serializers.UserProfileSerializer',  # Register user with profile
+        'user_delete': 'djoser.serializers.UserDeleteSerializer',
+    },
+    'LOGIN_FIELD': 'email',  # Use email for login instead of username
+    'SEND_ACTIVATION_EMAIL': True,  # Send activation email upon registration
+    'SEND_CONFIRMATION_EMAIL': True,  # Send confirmation email for actions like password changes
+    'ACTIVATION_URL': 'activate/{uid}/{token}',  # URL endpoint for account activation
+
+    # URL endpoints for password reset and username reset confirmations
+    'PASSWORD_RESET_CONFIRM_URL': 'password/reset/confirm/{uid}/{token}',
+    'USERNAME_RESET_CONFIRM_URL': 'username/reset/confirm/{uid}/{token}',
+
+    'PASSWORD_RESET_SHOW_EMAIL': True,  # Show email in the password reset form
+    'USERNAME_CHANGED_EMAIL_CONFIRMATION': True,  # Send confirmation email if username is changed
+    'PASSWORD_CHANGED_EMAIL_CONFIRMATION': True,  # Send confirmation email if password is changed
+
+    # Require password retype during user creation for verification
+    'USER_CREATE_PASSWORD_RETYPE': True,
+}
+
+LOGIN_URL = reverse_lazy('auth:jwt-create')
+USERNAME_FIELD = 'email'
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        }
+    },
+    'USE_SESSION_AUTH': False,
+}

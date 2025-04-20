@@ -123,6 +123,19 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    @method_decorator(cache_page(60 * 60, key_prefix='user_product_detail'))
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Retrieve a single product detail.
+
+        This method retrieves the details of a specific product based on the `slug`
+        provided in the URL. The response is cached for 1 hour to improve performance
+        and reduce database queries.
+
+        Caching Key: Varies based on the `user_product_detail` key prefix.
+        """
+        return super().retrieve(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         """
         Automatically assign the logged-in user as the owner of the product.

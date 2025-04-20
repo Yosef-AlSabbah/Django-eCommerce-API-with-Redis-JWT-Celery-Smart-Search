@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from rest_framework import serializers
 
 from .models import Category, Product
@@ -23,6 +24,24 @@ class ProductSerializer(serializers.ModelSerializer):
         source='tags.names',
         required=False,
     )
+    rating = serializers.SerializerMethodField()
+
+    def get_rating(self, obj):
+        """
+        Calculate the average rating for the product and cache it for 1 hour.
+        """
+        cache_key = f"product_{obj.product_id}_rating"
+        rating = cache.get(cache_key)
+
+        if rating is None:
+            reviews = obj.reviews.all()
+            if not reviews:
+                return None
+            total_rating = sum(review.rating for review in reviews)
+            rating = total_rating / len(reviews)
+            cache.set(cache_key, rating, 3600)  # Cache for 1 hour (3600 seconds)
+
+        return rating
 
     def to_internal_value(self, data):
         if self.instance is None and 'category' not in data:
@@ -58,5 +77,6 @@ class ProductSerializer(serializers.ModelSerializer):
             'image',
             'category',
             'category_detail',
-            'tags'
+            'tags',
+            'rating',
         ]

@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
@@ -52,11 +53,18 @@ class Category(SluggedModel):
         return f"Category: {self.name}"
 
 
+class InStockManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(stock__gt=0)
+
+
 class Product(SluggedModel):
     product_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     stock = models.IntegerField()
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
     image = models.ImageField(
         null=True,
         blank=True,
@@ -72,6 +80,8 @@ class Product(SluggedModel):
         related_name="products",
         on_delete=models.CASCADE,
     )
+    objects = models.Manager()
+    in_stock = InStockManager()
     tags = TaggableManager()
 
     class Meta:
@@ -89,3 +99,33 @@ class Product(SluggedModel):
 
     def __str__(self):
         return f"Product: {self.name} (ID: {self.product_id})"
+
+
+class Review(models.Model):
+    product = models.ForeignKey(
+        Product,
+        related_name="reviews",
+        on_delete=models.CASCADE
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="reviews",
+        on_delete=models.CASCADE
+    )
+    rating = models.PositiveSmallIntegerField(
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(5),
+        ]
+    )
+    comment = models.TextField(blank=True, null=True)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Review"
+        verbose_name_plural = "Reviews"
+        ordering = ["-created"]
+
+    def __str__(self):
+        return f"Review by {self.user} for {self.product} - {self.rating} stars"

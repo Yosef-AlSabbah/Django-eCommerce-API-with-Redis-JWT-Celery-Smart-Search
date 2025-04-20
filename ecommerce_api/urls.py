@@ -17,23 +17,33 @@ Including another URLconf
 from debug_toolbar.toolbar import debug_toolbar_urls
 from django.conf import settings
 from django.contrib import admin
+from django.contrib.sitemaps.views import sitemap
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView
-)
+
+from shop.feeds import TrendingProductsFeed
+from shop.sitemaps import ProductSitemap
+
+sitemaps = {
+    'products': ProductSitemap,
+}
 
 urlpatterns = [
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    path('auth/', include('account.urls', namespace='auth')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     path('api/v1/', include('api.urls', namespace='api-v1')),
+    path('payment/', include('payment.urls', namespace='payment')),
     path('admin/', admin.site.urls),
+    path(
+        'sitemap.xml',
+        sitemap,
+        {'sitemaps': sitemaps},
+        name='django.contrib.sitemaps.views.sitemap',
+    ),
+    path('feed/', TrendingProductsFeed(), name='product-feed'),
+    path('social-auth/', include('social_django.urls', namespace='social')),
 ]
 
 urlpatterns += debug_toolbar_urls()

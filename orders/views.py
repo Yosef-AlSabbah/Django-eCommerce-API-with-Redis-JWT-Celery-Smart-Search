@@ -3,9 +3,9 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
 from cart.cart import Cart
-from .tasks import send_order_confirmation_email
 from .models import Order, OrderItem
 from .serializers import OrderSerializer
+from .tasks import send_order_confirmation_email
 
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -49,7 +49,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not self.request.user.is_staff:
             # If the user is not staff, filter orders by the logged-in user
             return qs.filter(user=self.request.user)
-        return qs
+        return qs.distinct().prefetch_related('items__product')
 
     def get_permissions(self):
         """

@@ -4,16 +4,17 @@ services:
     restart: always
     volumes:
       - ./data/db:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_DB=eCommerce
-      - POSTGRES_USER=eCommerce
-      - POSTGRES_PASSWORD=0592876798
+    env_file:
+      - .env
 
-  cache:
-    image: redis
+  rabbitmq:
+    image: rabbitmq:3-management
     restart: always
-    volumes:
-      - ./data/cache:/data
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    env_file:
+      - .env
 
   web:
     build: .
@@ -24,20 +25,9 @@ services:
       - .:/code
     ports:
       - "8000:8000"
-    environment:
-      - DJANGO_SETTINGS_MODULE=ecommerce_api.settings.prod
-      - POSTGRES_DB=eCommerce
-      - POSTGRES_USER=eCommerce
-      - POSTGRES_PASSWORD=0592876798
+    env_file:
+      - .env
     depends_on:
       - db
       - cache
-
-  nginx:
-   image: nginx
-   restart: always
-   volumes:
-   - ./config/nginx:/etc/nginx/templates
-   - .:/code
-   ports:
-   - "80:80"
+      - rabbitmq
