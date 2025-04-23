@@ -1,11 +1,17 @@
 services:
   db:
-    image: postgres
+    image: postgres:17.4
     restart: always
     volumes:
-      - ./data/db:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
     env_file:
       - .env
+
+  cache:
+    image: redis:7.4.2
+    restart: always
+    ports:
+      - "6379:6379"
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -31,3 +37,15 @@ services:
       - db
       - cache
       - rabbitmq
+
+  nginx:
+    image: nginx:1.27.4
+    restart: always
+    volumes:
+      - ./config/nginx:/etc/nginx/templates
+      - .:/code
+    ports:
+      - "80:80"
+
+volumes:
+  db_data:

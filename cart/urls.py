@@ -1,8 +1,11 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 
-from .views import CartAPIView
+from .views import CartViewSet
+
+router = DefaultRouter()
+router.register(r'cart', CartViewSet, basename='cart')
 
 urlpatterns = [
-    path('', CartAPIView.as_view(), name='cart'),
-    path('cart/<uuid:product_id>/', CartAPIView.as_view(), name='cart-product'),  # For POST and DELETE requests
+    path('', include(router.urls)),
 ]

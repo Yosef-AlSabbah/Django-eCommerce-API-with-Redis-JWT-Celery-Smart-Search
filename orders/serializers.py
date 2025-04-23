@@ -7,14 +7,16 @@ from shop.serializers import ProductSerializer
 class OrderSerializer(serializers.ModelSerializer):
     class OrderItemSerializer(serializers.ModelSerializer):
         product = ProductSerializer(many=False, read_only=True)
+        price = serializers.DecimalField(max_digits=10, decimal_places=2)
 
         class Meta:
             model = OrderItem
             fields = ['product', 'quantity', 'price']
 
+    order_id = serializers.UUIDField(read_only=True)
     order_items = OrderItemSerializer(many=True, read_only=True, source='items')
     user = serializers.ReadOnlyField(source='user.username')
-    coupon = serializers.ReadOnlyField(source='coupon.code')
+    coupon = serializers.CharField(source='coupon.code', default=None)
     discount = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,

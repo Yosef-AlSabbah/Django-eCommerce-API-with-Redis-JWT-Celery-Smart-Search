@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils.text import slugify
 from taggit.managers import TaggableManager
 
+from .custom_taggit import CustomTaggedItem
 from .utils import product_upload_to_unique
 
 
@@ -16,24 +17,6 @@ class SluggedModel(models.Model):
 
     class Meta:
         abstract = True
-
-    def save(self, *args, **kwargs):
-        """
-        Auto-generate slug if not set or if name has changed.
-        Includes the current date to ensure uniqueness.
-        """
-        from datetime import date
-
-        if not self.slug:
-            self.slug = f"{slugify(self.name)}-{date.today().strftime('%Y-%m-%d')}"
-        else:
-            try:
-                existing = self.__class__.objects.get(pk=self.pk)
-            except self.__class__.DoesNotExist:
-                existing = None
-            if existing and self.name != existing.name:
-                self.slug = f"{slugify(self.name)}-{date.today().strftime('%Y-%m-%d')}"
-        super().save(*args, **kwargs)
 
 
 class Category(SluggedModel):
@@ -45,6 +28,13 @@ class Category(SluggedModel):
             models.Index(fields=['name']),
         ]
         ordering = ["name"]
+
+    def save(self, *args, **kwargs):
+        """
+        Auto-generate slug if not set or if name has changed.
+        """
+        self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
 
     def get_absolute_url(self):
         return reverse('api-v1:category-detail', kwargs={'slug': self.slug})
@@ -82,7 +72,7 @@ class Product(SluggedModel):
     )
     objects = models.Manager()
     in_stock = InStockManager()
-    tags = TaggableManager()
+    tags = TaggableManager(through=CustomTaggedItem)
 
     class Meta:
         verbose_name = "Product"
@@ -93,6 +83,24 @@ class Product(SluggedModel):
             models.Index(fields=['category']),
         ]
         ordering = ["name"]
+
+    def save(self, *args, **kwargs):
+        """
+        Auto-generate slug if not set or if name has changed.
+        Includes the current date to ensure uniqueness.
+        """
+        from datetime import date
+
+        if not self.slug:
+            self.slug = f"{slugify(self.name)}-{date.today().strftime('%Y-%m-%d')}"
+        else:
+            try:
+                existing = self.__class__.objects.get(pk=self.pk)
+            except self.__class__.DoesNotExist:
+                existing = None
+            if existing and self.name != existing.name:
+                self.slug = f"{slugify(self.name)}-{date.today().strftime('%Y-%m-%d')}"
+        super().save(*args, **kwargs)
 
     def get_absolute_url(self):
         return reverse('api-v1:product-detail', kwargs={'slug': self.slug})

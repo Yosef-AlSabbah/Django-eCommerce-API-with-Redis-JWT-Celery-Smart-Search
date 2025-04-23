@@ -27,7 +27,7 @@ class Recommender:
                     )
 
     def suggest_products_for(self, products, max_results=6):
-        product_ids = [p.id for p in products]
+        product_ids = [str(p.product_id) for p in products]
         if len(products) == 1:
             # only 1 product
             suggestions = r.zrange(
@@ -42,6 +42,7 @@ class Recommender:
             keys = [self.get_product_key(id) for id in product_ids]
             r.zunionstore(tmp_key, keys)
             # remove ids for the products the recommendation is for
+            print('product_ids', product_ids)
             r.zrem(tmp_key, *product_ids)
             # get the product ids by their score, descendant sort
             suggestions = r.zrange(
@@ -49,13 +50,13 @@ class Recommender:
             )[:max_results]
             # remove the temporary key
             r.delete(tmp_key)
-        suggested_products_ids = [int(id) for id in suggestions]
+        suggested_products_ids = [str(id) for id in suggestions]
         # get suggested products and sort by order of appearance
         suggested_products = list(
-            Product.objects.filter(id__in=suggested_products_ids)
+            Product.objects.filter(product_id__in=suggested_products_ids)
         )
         suggested_products.sort(
-            key=lambda x: suggested_products_ids.index(x.id)
+            key=lambda x: suggested_products_ids.index(x.product_id)
         )
         return suggested_products
     #

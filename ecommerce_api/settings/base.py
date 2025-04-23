@@ -31,43 +31,61 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 # Application definition
+#      ╭──────────────────────────────────────────────────────────╮
+#      │                Application Configuration                 │
+#      ╰──────────────────────────────────────────────────────────╯
+# ───── Defines The Core, Third-party, And Custom Applications Used In The Project ─────
 
-INSTALLED_APPS = [
-    'daphne',
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.sites',
-    'django.contrib.sitemaps',
-    'django.contrib.staticfiles',
-    'django.contrib.postgres',
-    'taggit',
-    'drf_spectacular',
-    'debug_toolbar',
-    'django_filters',
-    'rest_framework',
-    'rest_framework.authtoken',
-    'django_redis',
-    'social_django',
-    'djoser',
-    'simple_history',
-    'django_extensions',
-    'api.apps.ApiConfig',
-    'shop.apps.ShopConfig',
-    'cart.apps.CartConfig',
-    'orders.apps.OrdersConfig',
-    'coupons.apps.CouponsConfig',
-    'chat.apps.ChatConfig',
-    'payment.apps.PaymentConfig',
-    'account.apps.AccountConfig',
+# Core Django applications provided by the framework
+DJANGO_APPS = [
+    'django.contrib.admin',  # Admin interface for managing the application
+    'django.contrib.auth',  # Authentication framework
+    'django.contrib.contenttypes',  # Content type system for permissions
+    'django.contrib.sessions',  # Session framework
+    'django.contrib.messages',  # Messaging framework
+    'django.contrib.sites',  # Multi-site support
+    'django.contrib.sitemaps',  # Sitemap generation
+    'django.contrib.staticfiles',  # Static file management
+    'django.contrib.postgres',  # PostgreSQL-specific features
 ]
+
+# Third-party applications installed via pip
+THIRD_PARTY_APPS = [
+    'taggit',  # Tagging library for Django
+    'drf_spectacular',  # OpenAPI schema generation for Django REST Framework
+    'debug_toolbar',  # Debugging tool for development
+    'django_filters',  # Filtering support for Django REST Framework
+    'rest_framework',  # Django REST Framework for building APIs
+    'rest_framework.authtoken',  # Token-based authentication for REST Framework
+    'django_redis',  # Redis cache backend
+    'social_django',  # Social authentication (e.g., Google, Facebook)
+    'djoser',  # User authentication and management
+    'simple_history',  # Track changes to model instances
+    'django_extensions',  # Additional management commands and utilities
+    'rest_framework_simplejwt.token_blacklist',  # JWT token blacklist for security
+    'corsheaders'  # Cross-Origin Resource Sharing (CORS) headers
+]
+
+# Custom applications developed for this project
+CUSTOM_APPS = [
+    'api.apps.ApiConfig',  # API application
+    'shop.apps.ShopConfig',  # Shop application for managing products
+    'cart.apps.CartConfig',  # Cart application for managing shopping carts
+    'orders.apps.OrdersConfig',  # Orders application for managing customer orders
+    'coupons.apps.CouponsConfig',  # Coupons application for discounts
+    'chat.apps.ChatConfig',  # Chat application for real-time communication
+    'payment.apps.PaymentConfig',  # Payment application for processing transactions
+    'account.apps.AccountConfig',  # Account application for user management
+]
+
+# Combine all applications into the INSTALLED_APPS setting
+INSTALLED_APPS = ['daphne'] + DJANGO_APPS + THIRD_PARTY_APPS + CUSTOM_APPS
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     "debug_toolbar.middleware.DebugToolbarMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -97,14 +115,17 @@ WSGI_APPLICATION = 'ecommerce_api.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
+#      ╭──────────────────────────────────────────────────────────╮
+#      │                  Database Configuration                  │
+#      ╰──────────────────────────────────────────────────────────╯
+# ──────── This Section Configures The Database Connection For The Application ─────────
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': config('DB_NAME'),
         'USER': config('DB_USER'),
         'PASSWORD': config('DB_PASSWORD'),
-        'HOST': 'db',
+        'HOST': config('DB_HOST'),
         'PORT': 5432,
     }
 }
@@ -151,10 +172,14 @@ AUTH_USER_MODEL = 'account.UserAccount'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+#      ╭──────────────────────────────────────────────────────────╮
+#      │                 Framework Configuration                  │
+#      ╰──────────────────────────────────────────────────────────╯
+# ────────────── Settings For Authentication, Pagination, And Throttling ───────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
+        # 'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
@@ -179,26 +204,114 @@ REST_FRAMEWORK = {
     ],
 }
 
+#      ╭──────────────────────────────────────────────────────────╮
+#      │       Configuration for JWT Authentication Tokens        │
+#      ╰──────────────────────────────────────────────────────────╯
+# ━━ THIS SECTION SETS THE DURATION FOR BOTH ACCESS AND REFRESH TOKENS IN THE APPLICATION, USING THE SIMPLE_JWT SETTINGS. ━━
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    # Sets the lifespan of the access token.
+    # After 15 minutes, the access token will expire, requiring the user to use the refresh token to obtain a new access token.
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=15),
+
+    # Sets the lifespan of the refresh token.
+    # After 7 days, the refresh token will expire, requiring the user to re-authenticate to get a new refresh token.
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+
+    # Defines the class used for authentication tokens, specifying AccessToken here
+    # as the type of token used by Simple JWT.
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
+#      ╭──────────────────────────────────────────────────────────╮
+#      │                API Documentation Settings                │
+#      ╰──────────────────────────────────────────────────────────╯
+# ─────────────── Configure Openapi Schema For A Scalable Ecommerce Api ────────────────
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Hypex Ecommerce API',
-    'DESCRIPTION': 'Your project description',
-    'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
+    "TITLE": "Hypex eCommerce API Documentation",
+    "DESCRIPTION": "A scalable RESTful eCommerce API using Django, JWT auth, Redis caching, Celery for task scheduling, advanced search, tagging, and personalized results.",
+    "VERSION": "1.2.6",
+    "SERVE_INCLUDE_SCHEMA": True,  # Enables schema serving at runtime
+    "SCHEMA_PATH_PREFIX": "/api/v1",  # Filter paths for the documented schema
+
+    # Enforce strict validation and clean documentation
+    "SORT_OPERATIONS": True,  # Sort operations alphabetically by path and method
+    "SORT_SCHEMA_BY_TAGS": True,  # Sort schema tags alphabetically
+    "ENUM_NAME_OVERRIDES": {},  # Customize enum names if needed
+    "COMPONENT_SPLIT_REQUEST": False,  # Avoid splitting components for requests and responses unnecessarily
+
+    # Ensure compatibility with DELETE methods accepting body payloads
+    "ENABLE_DELETE_METHODS_WITH_BODY": True,
+    # "ENABLE_DELETE_METHODS_WITH_BODY": False,
+
+    # Tags and grouping
+    "TAGS": [
+        {
+            "name": "User Management",
+            "description": "Endpoints for managing user profiles, accounts, and related data."
+        },
+        {
+            "name": "User Authentication",
+            "description": "Endpoints for user login, logout, and authentication."
+        },
+        {
+            "name": "Payments",
+            "description": "Endpoints for processing and managing payments."
+        },
+        {
+            "name": "Orders",
+            "description": "Endpoints for managing customer orders and order details."
+        },
+        {
+            "name": "Coupons",
+            "description": "Endpoints for creating and managing discount coupons."
+        },
+        {
+            "name": "Categories",
+            "description": "Endpoints for managing product categories."
+        },
+        {
+            "name": "Chat",
+            "description": "Endpoints for real-time communication and chat functionality."
+        },
+        {
+            "name": "Cart",
+            "description": "Endpoints for managing the shopping cart."
+        },
+    ],
+    # Authentication configuration
+    "SECURITY": [
+        {"bearerAuth": []},  # Assuming you're using Bearer/Token-based authentication
+    ],
+
+    # Deprecation warnings
+    "APPEND_PATH_TO_TAGS": False,  # Do not append path to tags; keeps tags clean
+    "SCHEMA_EXTENSIONS": [],  # Add custom schema extensions if needed
 }
 
+#      ╭──────────────────────────────────────────────────────────╮
+#      │                 Configure Redis Caching                  │
+#      ╰──────────────────────────────────────────────────────────╯
+# ──────────────── Set Up Redis As The Default Cache Backend For Django ────────────────
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
+        "LOCATION": "redis://cache:6379/1",  # use 'cache' service name
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     }
+}
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('cache', 6379)],  # use 'cache' service name
+        },
+    },
 }
 
 # Django Debug Toolbar settings
@@ -213,6 +326,10 @@ REDIS_DB = 2
 
 CART_SESSION_ID = 'cart'
 
+#      ╭──────────────────────────────────────────────────────────╮
+#      │                   Email Configuration                    │
+#      ╰──────────────────────────────────────────────────────────╯
+# ━━ THIS SECTION CONFIGURES THE EMAIL BACKEND FOR SENDING EMAILS IN THE APPLICATION. ━━
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 EMAIL_HOST_USER = config('EMAIL_HOST_USER')
@@ -224,6 +341,10 @@ EMAIL_USE_TLS = True
 
 SITE_ID = 1
 
+#      ╭──────────────────────────────────────────────────────────╮
+#      │           Configure Redis for Django Channels            │
+#      ╰──────────────────────────────────────────────────────────╯
+#  Configure Django Channels With Redis For Real-time Communication And Asynchronous Task Handling
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
@@ -232,11 +353,13 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
 ASGI_APPLICATION = 'ecommerce_api.asgi.application'
 
 STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY')
 STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY')
 STRIPE_API_VERSION = '2024-04-10'
+STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET')
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
@@ -258,7 +381,7 @@ DJOSER = {
     'LOGIN_FIELD': 'email',  # Use email for login instead of username
     'SEND_ACTIVATION_EMAIL': True,  # Send activation email upon registration
     'SEND_CONFIRMATION_EMAIL': True,  # Send confirmation email for actions like password changes
-    'ACTIVATION_URL': 'activate/{uid}/{token}',  # URL endpoint for account activation
+    'ACTIVATION_URL': 'auth/activate/{uid}/{token}',  # URL endpoint for account activation
 
     # URL endpoints for password reset and username reset confirmations
     'PASSWORD_RESET_CONFIRM_URL': 'password/reset/confirm/{uid}/{token}',
@@ -286,3 +409,8 @@ SWAGGER_SETTINGS = {
     },
     'USE_SESSION_AUTH': False,
 }
+
+DOMAIN = config('DOMAIN')
+SITE_NAME = config('SITE_NAME')
+
+TAGGIT_CASE_INSENSITIVE = True

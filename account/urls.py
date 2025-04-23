@@ -6,7 +6,7 @@ from .views import (
     TokenObtainPairView,
     TokenRefreshView,
     TokenVerifyView,
-    TokenDestroyView,
+    TokenDestroyView, ActivateView,
 )
 
 # Application namespace to avoid conflicts
@@ -19,14 +19,6 @@ user_set_password = UserViewSet.as_view({'post': 'set_password'})
 user_reset_password = UserViewSet.as_view({'post': 'reset_password'})
 user_reset_password_confirm = UserViewSet.as_view({'post': 'reset_password_confirm'})
 
-# Define 'me' endpoint with all desired HTTP methods mapped to 'me' action
-user_me = UserViewSet.as_view({
-    'get': 'me',
-    'put': 'me',
-    'patch': 'me',
-    'delete': 'me',
-})
-
 urlpatterns = [
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ AUTHENTICATION URLS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # User registration
@@ -34,6 +26,7 @@ urlpatterns = [
 
     # User activation
     path('activate/', user_activate, name='activate'),
+    path('activate/<str:uid>/<str:token>/', ActivateView.as_view(), name='activate-form'),
 
     # Set password
     path('set-password/', user_set_password, name='set_password'),
@@ -46,7 +39,7 @@ urlpatterns = [
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ USER Authentication URLS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # Obtain a new JWT token
-    path('token/obtain/', TokenObtainPairView.as_view(), name='jwt-create'),
+    path('token/create/', TokenObtainPairView.as_view(), name='jwt-create'),
 
     # Refresh an existing JWT token
     path('token/refresh/', TokenRefreshView.as_view(), name='jwt-refresh'),
@@ -56,7 +49,6 @@ urlpatterns = [
 
     # Destroy an existing JWT token
     path('token/destroy/', TokenDestroyView.as_view(), name='jwt-destroy'),
-
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ USER MANAGEMENT URLS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # Current authenticated user endpoint with multiple HTTP methods
     path(

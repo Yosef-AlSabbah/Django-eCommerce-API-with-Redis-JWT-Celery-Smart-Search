@@ -1,4 +1,5 @@
 from django.core.cache import cache
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from .models import Category, Product
@@ -26,22 +27,26 @@ class ProductSerializer(serializers.ModelSerializer):
     )
     rating = serializers.SerializerMethodField()
 
+    @extend_schema_field(serializers.DictField(child=serializers.FloatField()))
     def get_rating(self, obj):
         """
-        Calculate the average rating for the product and cache it for 1 hour.
+        Calculate the average rating and count the number of users who rated the product.
+        Cache the result for 1 hour.
         """
         cache_key = f"product_{obj.product_id}_rating"
-        rating = cache.get(cache_key)
+        cached_data = cache.get(cache_key)
 
-        if rating is None:
+        if cached_data is None:
             reviews = obj.reviews.all()
             if not reviews:
-                return None
+                return {"average": 0.0, "count": 0}  # No reviews, return 0.0 rating and count 0
             total_rating = sum(review.rating for review in reviews)
-            rating = total_rating / len(reviews)
-            cache.set(cache_key, rating, 3600)  # Cache for 1 hour (3600 seconds)
+            average_rating = total_rating / len(reviews)
+            count = len(reviews)
+            cached_data = {"average": average_rating, "count": count}
+            cache.set(cache_key, cached_data, 3600)  # Cache for 1 hour (3600 seconds)
 
-        return rating
+        return cached_data
 
     def to_internal_value(self, data):
         if self.instance is None and 'category' not in data:
@@ -54,13 +59,13 @@ class ProductSerializer(serializers.ModelSerializer):
         tags = validated_data.pop('tags', None)
         instance = super().create(validated_data)
         if tags:
-            instance.tags.set(*tags)
+            instance.tags.set(tags['names'])
         return instance
 
     def update(self, instance, validated_data):
         tags = validated_data.pop('tags', None)
         if tags:
-            instance.tags.set(*tags)
+            instance.tags.set(tags['names'])
         else:
             instance.tags.clear()
         return super().update(instance, validated_data)

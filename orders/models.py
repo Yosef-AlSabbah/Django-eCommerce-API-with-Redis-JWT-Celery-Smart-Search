@@ -81,7 +81,7 @@ class Order(models.Model):
             return f'https://dashboard.stripe.com{path}payments/{self.stripe_id}'
 
     def __str__(self):
-        return f"Order: {self.id} by {self.user.username if self.user else 'Deleted User'}"
+        return f"Order: {self.order_id} by {self.user.username if self.user else 'Deleted User'}"
 
 
 class OrderItem(models.Model):
@@ -109,4 +109,4 @@ class OrderItem(models.Model):
         return self.product.price * self.quantity
 
     def __str__(self):
-        return f"Order Item: {self.product.name} (Order ID: {self.order.id})"
+        return f"Order Item: {self.product.name} (Order ID: {self.order.order_id})"
