@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from coupons.models import Coupon
 from orders.models import Order, OrderItem
@@ -17,11 +18,12 @@ User = get_user_model()
 
 
 class OrderAPITests(APITestCase):
+
     def setUp(self):
         self.admin = User.objects.create_superuser(
             username='admin', password='pass', email='admin@example.com'
         )
-        self.user = User.objects.create_user(username='user', password='pass')
+        self.user = User.objects.create_user(username='user', password='pass', email='1@1.com')
         self.category = Category.objects.create(name='Test Category')
         self.product1 = Product.objects.create(
             user=self.admin,
@@ -41,8 +43,11 @@ class OrderAPITests(APITestCase):
         self.url = reverse('api-v1:order-list')
         self.cart_session_id = getattr(settings, 'CART_SESSION_ID', 'cart')
 
+        # Set JWT token for admin by default
+        refresh = RefreshToken.for_user(self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
+
     def prepare_cart_session(self, products):
-        """Helper method to prepare cart session data"""
         session = self.client.session
         session[self.cart_session_id] = {}
         for product, quantity in products:
@@ -54,7 +59,8 @@ class OrderAPITests(APITestCase):
         session.save()
 
     def test_create_order_empty_cart(self):
-        self.client.login(username='admin', password='pass')
+        refresh = RefreshToken.for_user(self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
         session = self.client.session
         if self.cart_session_id in session:
             del session[self.cart_session_id]
@@ -65,7 +71,8 @@ class OrderAPITests(APITestCase):
         self.assertEqual(response.data['error'], "You cannot place an order with an empty cart.")
 
     def test_create_order_with_cart(self):
-        self.client.login(username='admin', password='pass')
+        refresh = RefreshToken.for_user(self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
         self.prepare_cart_session([(self.product1, 2)])
 
         with patch('orders.views.send_order_confirmation_email.delay') as mock_task:
@@ -82,7 +89,8 @@ class OrderAPITests(APITestCase):
         mock_task.assert_called_once_with(order.order_id)
 
     def test_create_order_with_multiple_products(self):
-        self.client.login(username='admin', password='pass')
+        refresh = RefreshToken.for_user(self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
         self.prepare_cart_session([(self.product1, 1), (self.product2, 3)])
 
         response = self.client.post(self.url)
@@ -90,26 +98,26 @@ class OrderAPITests(APITestCase):
 
         order = Order.objects.get(order_id=response.data['order_id'])
         self.assertEqual(order.items.count(), 2)
-        self.assertEqual(order.quantity, 4)  # Number of distinct products
-        self.assertEqual(order.get_total_cost_before_discount(), decimal.Decimal('140.00'))  # 50 + (30*3)
-
+        self.assertEqual(order.quantity, 4)
+        self.assertEqual(order.get_total_cost_before_discount(), decimal.Decimal('140.00'))
 
     def test_order_list_filtered_by_user(self):
-        # Create orders for both users
         order1 = Order.objects.create(user=self.admin, quantity=1)
         OrderItem.objects.create(order=order1, product=self.product1, quantity=1)
 
         order2 = Order.objects.create(user=self.user, quantity=1)
         OrderItem.objects.create(order=order2, product=self.product2, quantity=1)
 
-        # Test admin can see all orders
-        self.client.login(username='admin', password='pass')
+        # Admin can see all orders
+        refresh = RefreshToken.for_user(self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['data']), 2)
 
-        # Test regular user can only see their own orders
-        self.client.login(username='user', password='pass')
+        # Regular user can only see their own orders
+        refresh = RefreshToken.for_user(self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['data']), 1)
@@ -120,14 +128,16 @@ class OrderAPITests(APITestCase):
         OrderItem.objects.create(order=order, product=self.product1, quantity=2)
         detail_url = reverse('api-v1:order-detail', kwargs={'pk': order.order_id})
 
-        # Test admin can retrieve any order
-        self.client.login(username='admin', password='pass')
+        # Admin can retrieve any order
+        refresh = RefreshToken.for_user(self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
         response = self.client.get(detail_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['order_id'], str(order.order_id))
 
-        # Test regular user cannot retrieve other user's order
-        self.client.login(username='user', password='pass')
+        # Regular user cannot retrieve other user's order
+        refresh = RefreshToken.for_user(self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
         response = self.client.get(detail_url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -135,15 +145,17 @@ class OrderAPITests(APITestCase):
         order = Order.objects.create(user=self.admin, quantity=1)
         OrderItem.objects.create(order=order, product=self.product1, quantity=1)
         detail_url = reverse('api-v1:order-detail', kwargs={'pk': order.order_id})
-        data = {'status': 'CO'}  # Completed
+        data = {'status': 'CO'}
 
-        # Test regular user cannot update
-        self.client.login(username='user', password='pass')
+        # Regular user cannot update
+        refresh = RefreshToken.for_user(self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
         response = self.client.patch(detail_url, data)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-        # Test admin can update
-        self.client.login(username='admin', password='pass')
+        # Admin can update
+        refresh = RefreshToken.for_user(self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
         response = self.client.patch(detail_url, data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         order.refresh_from_db()
@@ -154,13 +166,15 @@ class OrderAPITests(APITestCase):
         OrderItem.objects.create(order=order, product=self.product1, quantity=1)
         detail_url = reverse('api-v1:order-detail', kwargs={'pk': order.order_id})
 
-        # Test regular user cannot delete
-        self.client.login(username='user', password='pass')
+        # Regular user cannot delete
+        refresh = RefreshToken.for_user(self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
         response = self.client.delete(detail_url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-        # Test admin can delete
-        self.client.login(username='admin', password='pass')
+        # Admin can delete
+        refresh = RefreshToken.for_user(self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
         response = self.client.delete(detail_url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Order.objects.filter(pk=order.order_id).exists())
@@ -170,7 +184,8 @@ class OrderAPITests(APITestCase):
         OrderItem.objects.create(order=order, product=self.product1, quantity=2)
         detail_url = reverse('api-v1:order-detail', kwargs={'pk': order.order_id})
 
-        self.client.login(username='admin', password='pass')
+        refresh = RefreshToken.for_user(self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
         response = self.client.get(detail_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -183,7 +198,7 @@ class OrderAPITests(APITestCase):
         self.assertIn('original_price', data)
         self.assertEqual(data['original_price'], '100.00')
         self.assertIn('total_price', data)
-        self.assertEqual(data['total_price'], '90.00')  # With 10% coupon
+        self.assertEqual(data['total_price'], '90.00')
         self.assertIn('coupon', data)
         self.assertEqual(data['coupon'], 'TEST10')
         self.assertIn('discount', data)
@@ -193,22 +208,25 @@ class OrderAPITests(APITestCase):
         order = Order.objects.create(user=self.admin, quantity=1)
         detail_url = reverse('api-v1:order-detail', kwargs={'pk': order.order_id})
 
-        self.client.login(username='admin', password='pass')
+        refresh = RefreshToken.for_user(self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
         response = self.client.get(detail_url)
-        self.assertEqual(response.data['status'], 'PE')  # Pending by default
+        self.assertEqual(response.data['status'], 'PE')
 
-        # Test valid status update
-        data = {'status': 'CO'}  # Completed
+        # Valid status update
+        data = {'status': 'CO'}
         response = self.client.patch(detail_url, data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'CO')
 
-        # Test invalid status
+        # Invalid status
         data = {'status': 'INVALID'}
         response = self.client.patch(detail_url, data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_unauthenticated_access(self):
+        self.client.credentials()  # Remove authentication
+
         # List
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

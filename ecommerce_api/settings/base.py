@@ -280,6 +280,10 @@ SPECTACULAR_SETTINGS = {
             "name": "Cart",
             "description": "Endpoints for managing the shopping cart."
         },
+        {
+            "name": "Reviews",
+            "description": "Endpoints for managing product reviews."
+        }
     ],
     # Authentication configuration
     "SECURITY": [
@@ -298,7 +302,7 @@ SPECTACULAR_SETTINGS = {
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://cache:6379/1",  # use 'cache' service name
+        "LOCATION": f"redis://{config('REDIS_HOST')}:6379/1",  # use 'cache' service name
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
@@ -309,7 +313,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [('cache', 6379)],  # use 'cache' service name
+            'hosts': [(config('REDIS_HOST'), 6379)],  # use 'cache' service name
         },
     },
 }

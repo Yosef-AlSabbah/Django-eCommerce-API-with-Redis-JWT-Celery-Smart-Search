@@ -15,7 +15,7 @@ User = get_user_model()
 
 class CartTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username='testuser', password='testpass')
+        self.user = User.objects.create_user(username='testuser', password='testpass', email='1@21.com')
         self.category = Category.objects.create(name='Test Category')
         self.product = Product.objects.create(
             user=self.user,
@@ -53,7 +53,7 @@ class CartTests(TestCase):
 
 class CartAPITests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username='testuser', password='testpass')
+        self.user = User.objects.create_user(username='testuser', password='testpass', email='1@1.com')
         self.category = Category.objects.create(name='Test Category')
         self.product = Product.objects.create(
             user=self.user,
@@ -62,7 +62,7 @@ class CartAPITests(APITestCase):
             stock=100,
             category=self.category
         )
-        self.cart_url = reverse('api-v1:cart')
+        self.cart_url = reverse('api-v1:cart-list')
         self.client.login(username='testuser', password='testpass')
 
     def test_get_cart(self):
@@ -73,7 +73,7 @@ class CartAPITests(APITestCase):
 
     def test_add_product_to_cart(self):
         response = self.client.post(
-            reverse('api-v1:cart-product', kwargs={'product_id': self.product.product_id}),
+            reverse('api-v1:cart-add-to-cart', kwargs={'product_id': self.product.product_id}),
             data={'quantity': 2}
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -81,9 +81,9 @@ class CartAPITests(APITestCase):
 
     def test_remove_product_from_cart(self):
         self.client.post(
-            reverse('api-v1:cart-product', kwargs={'product_id': self.product.product_id}),
+            reverse('api-v1:cart-add-to-cart', kwargs={'product_id': self.product.product_id}),
             data={'quantity': 2}
         )
-        response = self.client.delete(reverse('api-v1:cart-product', kwargs={'product_id': self.product.product_id}))
+        response = self.client.delete(reverse('api-v1:cart-remove-from-cart', kwargs={'product_id': self.product.product_id}))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['message'], 'Product removed from cart')

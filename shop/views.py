@@ -12,9 +12,11 @@ from drf_spectacular.utils import (
     OpenApiParameter,
     OpenApiExample,
 )
-from rest_framework import viewsets, permissions
+from rest_framework import permissions
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from taggit.models import Tag
 
@@ -23,10 +25,96 @@ from ecommerce_api.core.mixins import PaginationMixin
 from ecommerce_api.core.permissions import IsOwnerOrStaff
 from shop.filters import ProductFilter, InStockFilterBackend, ProductSearchFilterBackend
 from .models import Product, Category
+from .models import Review
 from .recommender import Recommender
-from .serializers import ProductSerializer, CategorySerializer
+from .serializers import ProductSerializer, CategorySerializer, ProductDetailSerializer
+from .serializers import ReviewSerializer
 
 logger = getLogger(__name__)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        operation_id="review_list",
+        description="List all reviews for a product.",
+        tags=["Reviews"],
+        responses={200: OpenApiResponse(description="Reviews retrieved successfully.")}
+    ),
+    create=extend_schema(
+        operation_id="review_create",
+        description="Create a new review for a product. Requires authentication.",
+        tags=["Reviews"],
+        responses={
+            201: OpenApiResponse(description="Review created successfully."),
+            400: OpenApiResponse(description="Invalid input data."),
+            401: OpenApiResponse(description="Authentication required."),
+        }
+    ),
+    update=extend_schema(
+        operation_id="review_update",
+        description="Update an existing review. Only the review owner can update.",
+        tags=["Reviews"],
+        responses={
+            200: OpenApiResponse(description="Review updated successfully."),
+            400: OpenApiResponse(description="Invalid input data."),
+            401: OpenApiResponse(description="Authentication required."),
+            403: OpenApiResponse(description="Permission denied."),
+            404: OpenApiResponse(description="Review not found."),
+        }
+    ),
+    partial_update=extend_schema(
+        operation_id="review_partial_update",
+        description="Partially update an existing review. Only the review owner can update.",
+        tags=["Reviews"],
+        responses={
+            200: OpenApiResponse(description="Review updated successfully."),
+            400: OpenApiResponse(description="Invalid input data."),
+            401: OpenApiResponse(description="Authentication required."),
+            403: OpenApiResponse(description="Permission denied."),
+            404: OpenApiResponse(description="Review not found."),
+        }
+    ),
+    destroy=extend_schema(
+        operation_id="review_destroy",
+        description="Delete a review. Only the review owner can delete.",
+        tags=["Reviews"],
+        responses={
+            204: OpenApiResponse(description="Review deleted successfully."),
+            401: OpenApiResponse(description="Authentication required."),
+            403: OpenApiResponse(description="Permission denied."),
+            404: OpenApiResponse(description="Review not found."),
+        }
+    ),
+)
+class ReviewViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for creating, updating, deleting, and listing reviews for a specific product.
+    Only authenticated users can create reviews. Only the review owner or a staff member can delete reviews.
+    Only the review owner can update reviews.
+    """
+    serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.action in ['update', 'partial_update', 'destroy']:
+            self.permission_classes = [IsOwnerOrStaff]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        product_slug = self.kwargs.get('product_slug')
+        logger.info("Fetching reviews for product slug: %s", product_slug)
+        return Review.objects.filter(product__slug=product_slug)
+
+    def perform_create(self, serializer):
+        serializer.validated_data['user'] = self.request.user
+        product_slug = self.kwargs.get('product_slug')
+        try:
+            product = get_object_or_404(Product, slug=product_slug)
+            serializer.save(product=product)
+            logger.info("Review created for product slug: %s by user id: %s", product_slug, self.request.user.id)
+        except Exception as e:
+            logger.error("Error creating review for product slug: %s: %s", product_slug, e, exc_info=True)
+            raise
 
 
 @extend_schema_view(
@@ -125,8 +213,16 @@ logger = getLogger(__name__)
     ),
     list_user_products=extend_schema(
         operation_id=r"product\_list\_user",
-        description=r"List products belonging to the authenticated user. Cached for 1 week.",
+        description=r"List products belonging to the authenticated user or a specified user by username. Cached for 1 week.",
         tags=[r"Products"],
+        parameters=[
+            OpenApiParameter(
+                name="username",
+                description="Filter products by the username of the user. Optional.",
+                required=False,
+                type=str
+            ),
+        ],
         responses={
             200: OpenApiResponse(description=r"User products retrieved successfully."),
             401: OpenApiResponse(description=r"Authentication required."),
@@ -134,6 +230,11 @@ logger = getLogger(__name__)
     ),
 )
 class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
+    """
+    API endpoint for managing products.
+    Supports listing, retrieving, creating, updating, and deleting products.
+    Includes filtering, ordering, and recommendations.
+    """
     queryset = Product.objects.prefetch_related(r'category', r'tags')
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrStaff]
     serializer_class = ProductSerializer
@@ -146,6 +247,16 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
     ]
     ordering_fields = [r'name', r'price', r'stock']
     lookup_field = r'slug'
+
+    def get_permissions(self):
+        if self.action in [r'list_user_products']:
+            self.permission_classes = [permissions.AllowAny]
+        return super().get_permissions()
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return ProductDetailSerializer
+        return super().get_serializer_class()
 
     @method_decorator(cache_page(60 * 5, key_prefix=r'product_list'))
     @method_decorator(vary_on_headers(r'Authorization'))
@@ -200,9 +311,17 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=[r'get'], url_path=r'user-products', url_name=r'user-products')
     def list_user_products(self, request):
         try:
-            logger.info("Listing products for user id: %s", request.user.id)
-            user = request.user
-            queryset = self.queryset.filter(user=user)
+            logger.info("Listing user products for user id: %s", request.user.id)
+            username = request.query_params.get('username')
+            if username:
+                logger.info("Filtering products by username: %s", username)
+                queryset = self.queryset.filter(user__username=username)
+            else:
+                if not request.user.is_authenticated:
+                    logger.warning("Unauthenticated user attempted to list their products.")
+                    return Response({"detail": "Authentication required to view your products."}, status=401)
+                user = request.user
+                queryset = self.queryset.filter(user=user)
             page = self.paginate_queryset(queryset)
             if page is not None:
                 serializer = self.get_serializer(page, many=True)
@@ -212,11 +331,6 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
         except Exception as e:
             logger.error("Error listing user products: %s", e, exc_info=True)
             raise
-
-    def get_permissions(self):
-        if self.action in [r'list_user_products']:
-            self.permission_classes = [permissions.IsAuthenticated]
-        return super().get_permissions()
 
 
 @extend_schema_view(
@@ -285,6 +399,11 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
     ),
 )
 class CategoryViewSet(PaginationMixin, viewsets.ModelViewSet):
+    """
+    API endpoint for managing product categories.
+    Allows listing and retrieving categories for all users.
+    Creation, update, and deletion require admin privileges.
+    """
     queryset = Category.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = CategorySerializer

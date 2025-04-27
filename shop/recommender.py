@@ -42,7 +42,6 @@ class Recommender:
             keys = [self.get_product_key(id) for id in product_ids]
             r.zunionstore(tmp_key, keys)
             # remove ids for the products the recommendation is for
-            print('product_ids', product_ids)
             r.zrem(tmp_key, *product_ids)
             # get the product ids by their score, descendant sort
             suggestions = r.zrange(

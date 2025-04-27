@@ -1,11 +1,15 @@
 from django.core.cache import cache
+from django.db.models import Q
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from .models import Category, Product
+from .models import Category, Product, Review
+from .recommender import Recommender
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    slug = serializers.ReadOnlyField()
+
     class Meta:
         model = Category
         fields = ['name', 'slug']
@@ -26,6 +30,10 @@ class ProductSerializer(serializers.ModelSerializer):
         required=False,
     )
     rating = serializers.SerializerMethodField()
+
+    slug = serializers.ReadOnlyField()
+    thumbnail_url = serializers.SerializerMethodField(read_only=True)
+    detail_url = serializers.URLField(source='get_absolute_url', read_only=True)
 
     @extend_schema_field(serializers.DictField(child=serializers.FloatField()))
     def get_rating(self, obj):
@@ -70,6 +78,12 @@ class ProductSerializer(serializers.ModelSerializer):
             instance.tags.clear()
         return super().update(instance, validated_data)
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_thumbnail_url(self, obj):
+        if obj.thumbnail and hasattr(obj.thumbnail, 'url'):
+            return obj.thumbnail.url
+        return None
+
     class Meta:
         model = Product
         fields = [
@@ -79,9 +93,48 @@ class ProductSerializer(serializers.ModelSerializer):
             'description',
             'price',
             'stock',
-            'image',
+            'thumbnail_url',
+            'detail_url',
             'category',
             'category_detail',
             'tags',
             'rating',
         ]
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    user = serializers.ReadOnlyField(source='user.username')
+
+    class Meta:
+        model = Review
+        fields = ['user', 'rating', 'comment', 'created']
+        read_only_fields = ['created']
+
+
+class ProductDetailSerializer(ProductSerializer):
+    recommended_products = serializers.SerializerMethodField()
+    reviews = serializers.SerializerMethodField()
+
+    def get_reviews(self, obj):
+        """
+        Fetch reviews for the given product.
+        """
+        reviews = obj.reviews.all()
+        return ReviewSerializer(reviews, many=True, context=self.context).data
+
+    def get_recommended_products(self, obj):
+        """
+        Fetch recommended products for the given product.
+        """
+        recommender = Recommender()
+        recommended_products = [product.product_id for product in
+                                recommender.suggest_products_for([obj], max_results=5)]
+        suggested_products = (
+                                 Product.objects.filter(
+                                     Q(category=obj.category) | Q(
+                                         tags__in=obj.tags.all() | Q(product_id__in=recommended_products)
+                                     )).exclude(product_id=obj.product_id).distinct())[:10]
+        return ProductSerializer(suggested_products, many=True, context=self.context).data
+
+    class Meta(ProductSerializer.Meta):
+        fields = ProductSerializer.Meta.fields + ['recommended_products']

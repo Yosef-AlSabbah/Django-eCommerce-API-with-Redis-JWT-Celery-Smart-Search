@@ -5,13 +5,14 @@ from drf_spectacular.utils import (
     OpenApiResponse,
     extend_schema_view,
 )
-from rest_framework import permissions, viewsets, status
+from rest_framework import viewsets, status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
 from cart.cart import Cart
 from coupons.models import Coupon
 from .models import Order, OrderItem
+from .permissions import IsAdminOrOwner
 from .serializers import OrderSerializer
 from .tasks import send_order_confirmation_email
 
@@ -74,7 +75,7 @@ logger = getLogger(__name__)
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.prefetch_related('items__product')
     serializer_class = OrderSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminOrOwner]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -84,10 +85,10 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['update', 'partial_update', 'destroy']:
-            self.permission_classes = [permissions.IsAdminUser]
+            permission_classes = [IsAdminUser]
         else:
-            self.permission_classes = [IsAuthenticated]
-        return super().get_permissions()
+            permission_classes = [IsAdminOrOwner]
+        return [permission() for permission in permission_classes]
 
     def create(self, request, *args, **kwargs):
         logger.info("Creating order for user id: %s", request.user.id)
@@ -99,7 +100,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                                 status=status.HTTP_400_BAD_REQUEST)
             coupon = None
             try:
-                if request.session['coupon_id']:
+                coupon_id = request.session.get('coupon_id', None)
+                if coupon_id:
                     coupon = Coupon.objects.get(id=request.session['coupon_id'])
             except Coupon.DoesNotExist:
                 logger.warning("Invalid coupon ID in session for user id: %s", request.user.id)

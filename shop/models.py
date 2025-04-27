@@ -55,7 +55,7 @@ class Product(SluggedModel):
     stock = models.IntegerField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-    image = models.ImageField(
+    thumbnail = models.ImageField(
         null=True,
         blank=True,
         upload_to=product_upload_to_unique
@@ -88,18 +88,26 @@ class Product(SluggedModel):
         """
         Auto-generate slug if not set or if name has changed.
         Includes the current date to ensure uniqueness.
+        Handles duplicate slugs by appending a unique identifier.
         """
         from datetime import date
+        from django.utils.crypto import get_random_string
 
+        base_slug = f"{slugify(self.name)}-{date.today().strftime('%Y-%m-%d')}"
         if not self.slug:
-            self.slug = f"{slugify(self.name)}-{date.today().strftime('%Y-%m-%d')}"
+            self.slug = base_slug
         else:
             try:
                 existing = self.__class__.objects.get(pk=self.pk)
             except self.__class__.DoesNotExist:
                 existing = None
             if existing and self.name != existing.name:
-                self.slug = f"{slugify(self.name)}-{date.today().strftime('%Y-%m-%d')}"
+                self.slug = base_slug
+
+        # Ensure slug uniqueness
+        while self.__class__.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+            self.slug = f"{base_slug}-{get_random_string(6)}"
+
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
