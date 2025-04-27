@@ -13,18 +13,67 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.13]
+        python-version: [3.12]
+
+    services:
+      db:
+        image: postgres:17.4
+        env:
+          POSTGRES_DB: eCommerce
+          POSTGRES_USER: eCommerce
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        ports:
+          - 5432:5432
+
+      cache:
+        image: redis:7.4.2
+        ports:
+          - 6379:6379
+
+      rabbitmq:
+        image: rabbitmq:3-management
+        env:
+          RABBITMQ_DEFAULT_USER: ${{ secrets.RABBITMQ_USER }}
+          RABBITMQ_DEFAULT_PASS: ${{ secrets.RABBITMQ_PASSWORD }}
+        ports:
+          - 5672:5672
+          - 15672:15672
 
     steps:
     - uses: actions/checkout@v4
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
+
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+
     - name: Run Tests
+      env:
+        DOMAIN: localhost:8000
+        SITE_NAME: "Hypex eCommerce"
+        DB_NAME: eCommerce
+        DB_USER: eCommerce
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        DB_HOST: localhost
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+        EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
+        EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
+        DEFAULT_FROM_EMAIL: "Hypex Store <${{ secrets.EMAIL_HOST_USER }}>"
+        STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+        STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+        GOOGLE_OAUTH2_KEY: ${{ secrets.GOOGLE_OAUTH2_KEY }}
+        GOOGLE_OAUTH2_SECRET: ${{ secrets.GOOGLE_OAUTH2_SECRET }}
+        POSTGRES_DB: eCommerce
+        POSTGRES_USER: eCommerce
+        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        RABBITMQ_DEFAULT_USER: ${{ secrets.RABBITMQ_USER }}
+        RABBITMQ_DEFAULT_PASS: ${{ secrets.RABBITMQ_PASSWORD }}
       run: |
         python manage.py test
