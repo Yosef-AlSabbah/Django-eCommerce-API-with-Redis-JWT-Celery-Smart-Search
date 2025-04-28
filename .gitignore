@@ -1,4 +1,11 @@
 .venv
 .idea
 Notes
+data
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.DS_Store
+*.sock
 .env
