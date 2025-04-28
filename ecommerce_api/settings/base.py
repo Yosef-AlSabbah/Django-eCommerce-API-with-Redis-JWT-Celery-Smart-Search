@@ -418,3 +418,5 @@ DOMAIN = config('DOMAIN')
 SITE_NAME = config('SITE_NAME')
 
 TAGGIT_CASE_INSENSITIVE = True
+
+CELERY_BROKER_URL = f"amqp://{config('RABBITMQ_DEFAULT_USER')}:{config('RABBITMQ_DEFAULT_PASS')}@localhost:5672/"
