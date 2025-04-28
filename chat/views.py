@@ -33,13 +33,13 @@ class ProductChatAPIView(PaginationMixin, APIView):
 
     def get(self, request, product_id):
         try:
-            product = Product.objects.get(id=product_id)
+            product = Product.objects.get(product_id=product_id)
         except Product.DoesNotExist as e:
             logger.error(f"Product not found for id {product_id}: {e}", exc_info=True)
             return Response({"error": "Product not found."}, status=404)
 
         try:
-            messages = Message.objects.filter(product=product).select_related("sender", "recipient").order_by("-id")
+            messages = Message.objects.filter(product_id=product.product_id).select_related("sender", "recipient").order_by("-id")
             paginator = self.pagination_class()
             paginated_messages = paginator.paginate_queryset(messages, request)
             messages_data = [
@@ -47,7 +47,7 @@ class ProductChatAPIView(PaginationMixin, APIView):
                     "sender": message.sender.username,
                     "recipient": message.recipient.username,
                     "content": message.content,
-                    "timestamp": message.created_at,
+                    "timestamp": message.sent_at,
                 }
                 for message in reversed(paginated_messages)
             ]

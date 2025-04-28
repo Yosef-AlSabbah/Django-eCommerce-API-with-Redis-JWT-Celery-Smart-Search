@@ -4,7 +4,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from shop.models import Category, Review, Product
+from shop.models import Product, Category
+from shop.models import Review
 
 User = get_user_model()
 

@@ -34,6 +34,17 @@ logger = getLogger(__name__)
 
 
 @extend_schema_view(
+    retrieve=extend_schema(
+        operation_id="review_retrieve",
+        description="Retrieve a specific review by ID.",
+        tags=["Reviews"],
+        responses={
+            200: OpenApiResponse(description="Review retrieved successfully."),
+            401: OpenApiResponse(description="Authentication required."),
+            403: OpenApiResponse(description="Permission denied."),
+            404: OpenApiResponse(description="Review not found."),
+        }
+    ),
     list=extend_schema(
         operation_id="review_list",
         description="List all reviews for a product.",

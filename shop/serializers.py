@@ -39,22 +39,32 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_rating(self, obj):
         """
         Calculate the average rating and count the number of users who rated the product.
-        Cache the result for 1 hour.
+        Cache the result for 1 week. The cache is updated incrementally when a review is created or deleted.
+
+        Args:
+            obj: The product instance.
+
+        Returns:
+            dict: A dictionary containing the average rating and the count of reviews.
         """
         cache_key = f"product_{obj.product_id}_rating"
         cached_data = cache.get(cache_key)
 
         if cached_data is None:
+            # Initialize cache if not present
             reviews = obj.reviews.all()
             if not reviews:
                 return {"average": 0.0, "count": 0}  # No reviews, return 0.0 rating and count 0
             total_rating = sum(review.rating for review in reviews)
-            average_rating = total_rating / len(reviews)
             count = len(reviews)
-            cached_data = {"average": average_rating, "count": count}
-            cache.set(cache_key, cached_data, 3600)  # Cache for 1 hour (3600 seconds)
+            average_rating = total_rating / count
+            cached_data = {"average": average_rating, "count": count, "total_rating": total_rating}
+            cache.set(cache_key, cached_data, 604800)  # Cache for 1 week (604800 seconds)
+        else:
+            # Update cache incrementally
+            cached_data["average"] = cached_data["total_rating"] / cached_data["count"]
 
-        return cached_data
+        return {"average": cached_data["average"], "count": cached_data["count"]}
 
     def to_internal_value(self, data):
         if self.instance is None and 'category' not in data:

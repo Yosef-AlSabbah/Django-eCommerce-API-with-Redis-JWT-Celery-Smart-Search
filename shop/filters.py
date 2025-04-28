@@ -3,6 +3,7 @@ from django_filters import FilterSet
 from rest_framework.filters import BaseFilterBackend
 
 from .models import Product
+from .utils import search_products
 
 
 class ProductFilter(FilterSet):
@@ -40,8 +41,4 @@ class ProductSearchFilterBackend(BaseFilterBackend):
 
     def filter_queryset(self, request, queryset, view):
         search = request.query_params.get('search', None)
-        if search:
-            queryset.annotate(
-                similarity=TrigramSimilarity('name', search),
-            ).filter(similarity__gt=0.1).order_by('-similarity')
-        return queryset
+        return search_products(queryset, search)

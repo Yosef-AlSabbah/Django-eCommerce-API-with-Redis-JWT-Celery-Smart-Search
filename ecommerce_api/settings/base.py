@@ -309,6 +309,10 @@ CACHES = {
     }
 }
 
+#      ╭──────────────────────────────────────────────────────────╮
+#      │           Configure Redis for Django Channels            │
+#      ╰──────────────────────────────────────────────────────────╯
+#  Configure Django Channels With Redis For Real-time Communication And Asynchronous Task Handling
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
@@ -345,18 +349,8 @@ EMAIL_USE_TLS = True
 
 SITE_ID = 1
 
-#      ╭──────────────────────────────────────────────────────────╮
-#      │           Configure Redis for Django Channels            │
-#      ╰──────────────────────────────────────────────────────────╯
-#  Configure Django Channels With Redis For Real-time Communication And Asynchronous Task Handling
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],
-        },
-    },
-}
+
+
 
 ASGI_APPLICATION = 'ecommerce_api.asgi.application'
 
@@ -419,4 +413,4 @@ SITE_NAME = config('SITE_NAME')
 
 TAGGIT_CASE_INSENSITIVE = True
 
-CELERY_BROKER_URL = f"amqp://{config('RABBITMQ_DEFAULT_USER')}:{config('RABBITMQ_DEFAULT_PASS')}@localhost:5672/"
+CELERY_BROKER_URL = f"amqp://{config('RABBITMQ_DEFAULT_USER')}:{config('RABBITMQ_DEFAULT_PASS')}@{config('RABBITMQ_HOST')}:5672/"
