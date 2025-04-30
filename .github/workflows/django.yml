@@ -57,6 +57,7 @@ jobs:
         POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
         POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         DB_HOST: localhost
+        DB_PORT: 5432
         REDIS_HOST: localhost
         REDIS_PORT: 6379
         EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
