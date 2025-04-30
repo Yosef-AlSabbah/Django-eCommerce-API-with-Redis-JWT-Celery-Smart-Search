@@ -10,57 +10,48 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 4
       matrix:
         python-version: [3.12]
 
     services:
       database:
         image: postgres:17.4
-        container_name: database
-        restart: always
-        volumes:
-          - database:/var/lib/postgresql/data
         env:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-        healthcheck:
-          test: [ "CMD-SHELL", "pg_isready -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }}" ]
-          interval: 10s
-          timeout: 5s
-          retries: 5
         ports:
           - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }}"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
       cache:
         image: redis:7.4.2
-        container_name: cache
-        restart: always
         ports:
-          - "6379:6379"
+          - 6379:6379
 
       rabbitmq:
         image: rabbitmq:3-management
-        container_name: broker
-        restart: always
-        ports:
-          - "15672:15672"
-          - "5672:5672"
         env:
           RABBITMQ_DEFAULT_USER: ${{ secrets.RABBITMQ_USER }}
           RABBITMQ_DEFAULT_PASS: ${{ secrets.RABBITMQ_PASSWORD }}
-        healthcheck:
-          test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
-          interval: 10s
-          timeout: 5s
-          retries: 3
+        ports:
+          - 15672:15672
+          - 5672:5672
+        options: >-
+          --health-cmd="rabbitmq-diagnostics ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
 
     steps:
     - uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
 
