@@ -8,7 +8,6 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 4
@@ -16,28 +15,46 @@ jobs:
         python-version: [3.12]
 
     services:
-      db:
+      database:
         image: postgres:17.4
+        container_name: database
+        restart: always
+        volumes:
+          - database:/var/lib/postgresql/data
         env:
-          POSTGRES_DB: eCommerce
-          POSTGRES_USER: eCommerce
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+        healthcheck:
+          test: [ "CMD-SHELL", "pg_isready -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }}" ]
+          interval: 10s
+          timeout: 5s
+          retries: 5
         ports:
           - 5432:5432
 
       cache:
         image: redis:7.4.2
+        container_name: cache
+        restart: always
         ports:
-          - 6379:6379
+          - "6379:6379"
 
       rabbitmq:
         image: rabbitmq:3-management
+        container_name: broker
+        restart: always
+        ports:
+          - "15672:15672"
+          - "5672:5672"
         env:
           RABBITMQ_DEFAULT_USER: ${{ secrets.RABBITMQ_USER }}
           RABBITMQ_DEFAULT_PASS: ${{ secrets.RABBITMQ_PASSWORD }}
-        ports:
-          - 5672:5672
-          - 15672:15672
+        healthcheck:
+          test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+          interval: 10s
+          timeout: 5s
+          retries: 3
 
     steps:
     - uses: actions/checkout@v4
@@ -55,10 +72,10 @@ jobs:
     - name: Run Tests
       env:
         DOMAIN: localhost:8000
-        SITE_NAME: "Hypex eCommerce"
-        DB_NAME: eCommerce
-        DB_USER: eCommerce
-        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        SITE_NAME: "Luqta eCommerce"
+        DB_NAME: ${{ secrets.POSTGRES_DB }}
+        DB_USER: ${{ secrets.POSTGRES_USER }}
+        DB_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         DB_HOST: localhost
         REDIS_HOST: localhost
         REDIS_PORT: 6379
@@ -70,11 +87,5 @@ jobs:
         STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
         GOOGLE_OAUTH2_KEY: ${{ secrets.GOOGLE_OAUTH2_KEY }}
         GOOGLE_OAUTH2_SECRET: ${{ secrets.GOOGLE_OAUTH2_SECRET }}
-        POSTGRES_DB: eCommerce
-        POSTGRES_USER: eCommerce
-        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-        RABBITMQ_DEFAULT_USER: ${{ secrets.RABBITMQ_USER }}
-        RABBITMQ_DEFAULT_PASS: ${{ secrets.RABBITMQ_PASSWORD }}
-        RABBITMQ_HOST: rabbitmq
       run: |
         python manage.py test
