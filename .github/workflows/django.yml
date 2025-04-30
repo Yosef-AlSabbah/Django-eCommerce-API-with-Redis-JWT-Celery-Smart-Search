@@ -53,9 +53,9 @@ jobs:
       env:
         DOMAIN: localhost:8000
         SITE_NAME: "Luqta eCommerce"
-        DB_NAME: ${{ secrets.POSTGRES_DB }}
-        DB_USER: ${{ secrets.POSTGRES_USER }}
-        DB_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+        POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         DB_HOST: localhost
         REDIS_HOST: localhost
         REDIS_PORT: 6379
