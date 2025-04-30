@@ -22,12 +22,6 @@ jobs:
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
         ports:
           - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }}"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
       cache:
         image: redis:7.4.2
         ports:
@@ -41,11 +35,6 @@ jobs:
         ports:
           - 15672:15672
           - 5672:5672
-        options: >-
-          --health-cmd="rabbitmq-diagnostics ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
 
     steps:
     - uses: actions/checkout@v4
