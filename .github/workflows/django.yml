@@ -75,6 +75,6 @@ jobs:
         POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         RABBITMQ_DEFAULT_USER: ${{ secrets.RABBITMQ_USER }}
         RABBITMQ_DEFAULT_PASS: ${{ secrets.RABBITMQ_PASSWORD }}
-        RABBITMQ_HOST: ${{ secrets.RABBITMQ_HOST }}
+        RABBITMQ_HOST: rabbitmq
       run: |
         python manage.py test
