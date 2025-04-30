@@ -1,29 +1,45 @@
 services:
-  db:
+  database:
     image: postgres:17.4
+    container_name: database
     restart: always
     volumes:
-      - db_data:/var/lib/postgresql/data
-    env_file:
-      - .env
+      - database:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   cache:
     image: redis:7.4.2
+    container_name: cache
     restart: always
     ports:
       - "6379:6379"
 
   rabbitmq:
     image: rabbitmq:3-management
+    container_name: broker
     restart: always
     ports:
       - "15672:15672"
       - "5672:5672"
     env_file:
       - .env
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   web:
     build: .
+    container_name: backend
     command: [ "./wait-for-it.sh", "db:5432", "--",
                "uwsgi", "--ini", "/code/config/uwsgi/uwsgi.ini" ]
     restart: always
@@ -34,12 +50,13 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
       - cache
       - rabbitmq
+      - database
 
   nginx:
     image: nginx:1.27.4
+    container_name: nginx
     restart: always
     volumes:
       - ./config/nginx:/etc/nginx/templates
@@ -48,4 +65,4 @@ services:
       - "80:80"
 
 volumes:
-  db_data:
+  database:

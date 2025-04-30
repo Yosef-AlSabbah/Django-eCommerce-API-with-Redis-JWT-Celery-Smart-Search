@@ -1,10 +1,13 @@
+from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from chat.consumers import ChatConsumer
 from chat.models import Message
-from shop.models import Product
+from shop.models import Product, Category
 
 User = get_user_model()
 
@@ -52,3 +55,48 @@ class ChatAppTests(APITestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertIn('data', response.data)
+
+
+class ChatConsumerTest(TestCase):
+    def setUp(self):
+        # Create test users
+        self.User = get_user_model()
+        self.seller = self.User.objects.create_user(username='seller', password='password', email='1@d.com')
+        self.buyer = self.User.objects.create_user(username='buyer', password='password', email='2@d.com')
+
+        # Create a test product
+        self.category = Category.objects.create(name='TestCat', slug='testcat')
+        self.product = Product.objects.create(name='Test Product', user=self.seller, price=10.00, stock=5, category=self.category)
+
+    async def test_chat_consumer(self):
+        # Simulate WebSocket connection for the buyer
+        communicator = WebsocketCommunicator(
+            ChatConsumer.as_asgi(),
+            f'/ws/chat/{self.product.product_id}/'
+        )
+        communicator.scope['user'] = self.buyer
+        communicator.scope['url_route'] = {'kwargs': {'product_id': self.product.product_id}}
+
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected)
+
+        # Send a message from the buyer
+        message = 'Hello, I am interested in your product!'
+        await communicator.send_json_to({
+            'message': message
+        })
+
+        # Receive the message from the WebSocket
+        response = await communicator.receive_json_from()
+        self.assertEqual(response['message'], message)
+        self.assertEqual(response['sender'], self.buyer.username)
+
+        # Check if the message was saved in the database
+        saved_message = Message.objects.get(content=message)
+        self.assertEqual(saved_message.sender, self.buyer)
+        self.assertEqual(saved_message.recipient, self.seller)
+        self.assertEqual(saved_message.product, self.product)
+
+        # Disconnect the WebSocket
+        await communicator.disconnect()
+

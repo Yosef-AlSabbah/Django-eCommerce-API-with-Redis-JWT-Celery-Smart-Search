@@ -12,6 +12,14 @@ from .models import Message
 class ChatConsumer(AsyncWebsocketConsumer):
     """WebSocket consumer for handling private product chats between sellers and buyers."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = None
+        self.product = None
+        self.room_name = None
+        self.room_group_name = None
+        self.product_id = None
+
     async def connect(self):
         """
         Handle WebSocket connection.
@@ -33,14 +41,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.product_id = self.scope['url_route']['kwargs']['product_id']
 
         try:
-            self.product = await Product.objects.aget(id=self.product_id)
+            self.product = await Product.objects.aget(product_id=self.product_id)
         except Product.DoesNotExist:
             await self.close()
             return
 
         # Create a unique room name for the seller-buyer-product combination
         # Sort user IDs to ensure same room name regardless of who connects first
-        user_ids = sorted([str(self.user.id), str(self.product.seller.id)])
+        user_ids = sorted([str(self.user.id), str(self.product.user.id)])
         self.room_name = f'chat_product_{self.product_id}_users_{"_".join(user_ids)}'
         self.room_group_name = f'chat_{self.room_name}'
 

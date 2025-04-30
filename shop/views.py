@@ -101,7 +101,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
     """
     API endpoint for creating, updating, deleting, and listing reviews for a specific product.
     Only authenticated users can create reviews. Only the review owner or a staff member can delete reviews.
-    Only the review owner can update reviews.
+    Only the review owner can update reviews. Users can only leave one review per product, and only for products they have purchased.
     """
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]

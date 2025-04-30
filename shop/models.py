@@ -142,6 +142,23 @@ class Review(models.Model):
         verbose_name = "Review"
         verbose_name_plural = "Reviews"
         ordering = ["-created"]
+        indexes = [
+            models.Index(fields=['product']),
+            models.Index(fields=['user']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'product'],
+                name='unique_user_product_review',
+                violation_error_message='A user can only leave one review per product.'
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        from django.core.exceptions import ValidationError
+        if not self.product.order_items.filter(order__user=self.user).exists():
+            raise ValidationError("You can only review products you have purchased.")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Review by {self.user} for {self.product} - {self.rating} stars"
