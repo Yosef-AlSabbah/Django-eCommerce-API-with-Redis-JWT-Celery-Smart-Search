@@ -1,10 +1,11 @@
 # Pull official base Python Docker image
-FROM python:3.12.3-slim
+FROM python:3.13.3-slim
 
 # Install system dependencies
 # This layer is cached unless the base image or the list of packages changes
 RUN apt-get update && apt-get install -y \
     build-essential \
+    python-dev \
     libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*

@@ -3,6 +3,8 @@ services:
     image: postgres:17.4
     container_name: database
     restart: always
+    ports:
+      - "5432:5432"
     volumes:
       - database:/var/lib/postgresql/data
     environment:
@@ -40,7 +42,7 @@ services:
   web:
     build: .
     container_name: backend
-    command: [ "./wait-for-it.sh", "db:5432", "--",
+    command: [ "./wait-for-it.sh", "database:5432", "--",
                "uwsgi", "--ini", "/code/config/uwsgi/uwsgi.ini" ]
     restart: always
     volumes:
