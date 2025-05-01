@@ -54,8 +54,13 @@ class CartViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     """
     A viewset for viewing and editing cart items.
     """
+    queryset = None
     lookup_field = 'product_id'
     lookup_url_kwarg = 'product_id'
+
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return None  # For schema generation
 
     @extend_schema(
         operation_id="cart_get_details",

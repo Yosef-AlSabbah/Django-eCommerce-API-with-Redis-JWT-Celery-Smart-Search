@@ -8,9 +8,9 @@ services:
     volumes:
       - database:/var/lib/postgresql/data
     environment:
+      POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 10s
@@ -43,7 +43,7 @@ services:
     build: .
     container_name: backend
     command: [ "./wait-for-it.sh", "database:5432", "--",
-               "uwsgi", "--ini", "/code/config/uwsgi/uwsgi.ini" ]
+               "sh", "-c", "python manage.py migrate && uwsgi --ini /code/config/uwsgi/uwsgi.ini" ]
     restart: always
     volumes:
       - .:/code

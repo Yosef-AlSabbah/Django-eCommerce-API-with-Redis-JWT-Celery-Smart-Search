@@ -349,9 +349,6 @@ EMAIL_USE_TLS = True
 
 SITE_ID = 1
 
-
-
-
 ASGI_APPLICATION = 'ecommerce_api.asgi.application'
 
 STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY')
@@ -414,3 +411,6 @@ SITE_NAME = config('SITE_NAME')
 TAGGIT_CASE_INSENSITIVE = True
 
 CELERY_BROKER_URL = f"amqp://{config('RABBITMQ_DEFAULT_USER')}:{config('RABBITMQ_DEFAULT_PASS')}@{config('RABBITMQ_HOST')}:5672/"
+
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"

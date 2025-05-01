@@ -5,7 +5,7 @@ FROM python:3.13.3-slim
 # This layer is cached unless the base image or the list of packages changes
 RUN apt-get update && apt-get install -y \
     build-essential \
-    python-dev \
+    python-dev-is-python3 \
     libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -33,7 +33,3 @@ COPY . .
 # Expose the application port
 # This layer is cached unless the exposed port changes
 EXPOSE 8000
-
-# Default command to run the application
-# This layer is cached unless the command changes
-CMD ["entrypoint.sh"]
