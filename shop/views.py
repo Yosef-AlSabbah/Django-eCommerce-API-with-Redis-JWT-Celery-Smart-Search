@@ -435,3 +435,15 @@ class CategoryViewSet(PaginationMixin, viewsets.ModelViewSet):
         except Exception as e:
             logger.error("Error listing categories: %s", e, exc_info=True)
             raise
+
+    def perform_create(self, serializer):
+        from django.db import IntegrityError
+        from rest_framework.exceptions import ValidationError
+        try:
+            serializer.save()
+        except IntegrityError as e:
+            logger.error("Integrity error creating category: %s", e, exc_info=True)
+            raise ValidationError({"name": "A category with this name or slug already exists."})
+        except Exception as e:
+            logger.error("Error creating category: %s", e, exc_info=True)
+            raise

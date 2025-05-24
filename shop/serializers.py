@@ -32,7 +32,13 @@ class ProductSerializer(serializers.ModelSerializer):
     rating = serializers.SerializerMethodField()
 
     slug = serializers.ReadOnlyField()
-    thumbnail_url = serializers.SerializerMethodField(read_only=True)
+    thumbnail = serializers.ImageField(
+        allow_null=True,
+        required=False,
+        use_url=True,
+        max_length=255,
+        help_text="URL of the product thumbnail image."
+    )
     detail_url = serializers.URLField(source='get_absolute_url', read_only=True)
 
     @extend_schema_field(serializers.DictField(child=serializers.FloatField()))
@@ -88,12 +94,6 @@ class ProductSerializer(serializers.ModelSerializer):
             instance.tags.clear()
         return super().update(instance, validated_data)
 
-    @extend_schema_field(serializers.CharField(allow_null=True))
-    def get_thumbnail_url(self, obj):
-        if obj.thumbnail and hasattr(obj.thumbnail, 'url'):
-            return obj.thumbnail.url
-        return None
-
     class Meta:
         model = Product
         fields = [
@@ -103,7 +103,7 @@ class ProductSerializer(serializers.ModelSerializer):
             'description',
             'price',
             'stock',
-            'thumbnail_url',
+            'thumbnail',
             'detail_url',
             'category',
             'category_detail',
@@ -147,4 +147,4 @@ class ProductDetailSerializer(ProductSerializer):
         return ProductSerializer(suggested_products, many=True, context=self.context).data
 
     class Meta(ProductSerializer.Meta):
-        fields = ProductSerializer.Meta.fields + ['recommended_products']
+        fields = ProductSerializer.Meta.fields + ['recommended_products', 'reviews']
