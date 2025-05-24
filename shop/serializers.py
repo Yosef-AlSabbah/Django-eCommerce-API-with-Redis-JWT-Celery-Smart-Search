@@ -140,10 +140,12 @@ class ProductDetailSerializer(ProductSerializer):
         recommended_products = [product.product_id for product in
                                 recommender.suggest_products_for([obj], max_results=5)]
         suggested_products = (
-                                 Product.objects.filter(
-                                     Q(category=obj.category) | Q(
-                                         tags__in=obj.tags.all() | Q(product_id__in=recommended_products)
-                                     )).exclude(product_id=obj.product_id).distinct())[:10]
+            Product.objects.filter(
+                Q(category=obj.category) |
+                Q(tags__in=obj.tags.all()) |
+                Q(product_id__in=recommended_products)
+            ).exclude(product_id=obj.product_id).distinct()[:10]
+        )
         return ProductSerializer(suggested_products, many=True, context=self.context).data
 
     class Meta(ProductSerializer.Meta):
