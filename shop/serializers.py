@@ -90,8 +90,8 @@ class ProductSerializer(serializers.ModelSerializer):
         tags = validated_data.pop('tags', None)
         if tags:
             instance.tags.set(tags['names'])
-        else:
-            instance.tags.clear()
+        # else:
+        #     instance.tags.clear()
         return super().update(instance, validated_data)
 
     class Meta:
