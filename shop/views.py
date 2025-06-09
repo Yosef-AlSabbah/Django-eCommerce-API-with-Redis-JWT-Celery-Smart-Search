@@ -121,8 +121,18 @@ class ReviewViewSet(viewsets.ModelViewSet):
         product_slug = self.kwargs.get('product_slug')
         try:
             product = get_object_or_404(Product, slug=product_slug)
+
+            # Check if user has purchased this product before saving
+            if not product.order_items.filter(order__user=self.request.user).exists():
+                from django.core.exceptions import ValidationError
+                raise ValidationError("You can only review products you have purchased.")
+
             serializer.save(product=product)
             logger.info("Review created for product slug: %s by user id: %s", product_slug, self.request.user.id)
+        except ValidationError as e:
+            logger.error("Validation error creating review for product slug: %s: %s", product_slug, e)
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(detail=str(e.message))
         except Exception as e:
             logger.error("Error creating review for product slug: %s: %s", product_slug, e, exc_info=True)
             raise

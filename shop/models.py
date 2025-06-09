@@ -156,8 +156,13 @@ class Review(models.Model):
 
     def save(self, *args, **kwargs):
         from django.core.exceptions import ValidationError
-        if not self.product.order_items.filter(order__user=self.user).exists():
+
+        # Allow skipping validation when saving from view (where validation already happened)
+        skip_validation = kwargs.pop('skip_validation', False)
+
+        if not skip_validation and not self.product.order_items.filter(order__user=self.user).exists():
             raise ValidationError("You can only review products you have purchased.")
+
         super().save(*args, **kwargs)
 
     def __str__(self):
