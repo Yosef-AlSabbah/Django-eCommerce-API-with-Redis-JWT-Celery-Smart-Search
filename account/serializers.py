@@ -21,6 +21,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     profile_pic = serializers.ImageField(
         required=False,
         help_text="Upload a profile picture (max size 2MB).",
+        use_url=True,
     )
 
     class Meta:

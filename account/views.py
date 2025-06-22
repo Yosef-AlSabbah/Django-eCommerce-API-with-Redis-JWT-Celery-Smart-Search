@@ -70,8 +70,11 @@ class UserViewSet(BaseUserViewSet):
         Manage operations on the authenticated user's profile.
         """
         try:
+            # Get the user's profile for serialization
+            profile = request.user.profile
+
             if request.method == "GET":
-                serializer = self.get_serializer(request.user)
+                serializer = UserProfileSerializer(profile, context={'request': request})
                 return Response({
                     "message": "Profile retrieved",
                     "data": serializer.data
@@ -79,11 +82,11 @@ class UserViewSet(BaseUserViewSet):
 
             elif request.method in ["PUT", "PATCH"]:
                 partial = request.method == "PATCH"
-                serializer = self.get_serializer(
-                    request.user, data=request.data, partial=partial
+                serializer = UserProfileSerializer(
+                    profile, data=request.data, partial=partial, context={'request': request}
                 )
                 serializer.is_valid(raise_exception=True)
-                self.perform_update(serializer)
+                serializer.save()  # This calls the update method on the serializer
                 return Response({
                     "message": "Profile updated",
                     "data": serializer.data
