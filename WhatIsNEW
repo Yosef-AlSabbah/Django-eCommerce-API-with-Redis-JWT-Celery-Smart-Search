@@ -1,0 +1,6 @@
+refactor(account): Use UserProfileSerializer for /me endpoint
+
+- Modified the "me" endpoint in UserViewSet to correctly use the UserProfileSerializer with the user's profile object
+- Added request context to the serializer for proper URL resolution of image fields
+- Updated the update logic to use serializer.save() to invoke the custom update method in UserProfileSerializer
+- Improves handling of both User and Profile data in a single endpoint
