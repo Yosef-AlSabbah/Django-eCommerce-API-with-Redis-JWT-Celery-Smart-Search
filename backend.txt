@@ -1,0 +1,16 @@
+2025-06-29 16:27:38.949 | Error during profile management: name 'Profile' is not defined
+2025-06-29 16:27:38.949 | Traceback (most recent call last):
+2025-06-29 16:27:38.949 |   File "/code/account/views.py", line 74, in me
+2025-06-29 16:27:38.949 |     profile, created = Profile.objects.get_or_create(user=request.user)
+2025-06-29 16:27:38.949 |                        ^^^^^^^
+2025-06-29 16:27:38.949 | NameError: name 'Profile' is not defined
+2025-06-29 16:27:38.954 | Internal server error occurred
+2025-06-29 16:27:38.954 | Traceback (most recent call last):
+2025-06-29 16:27:38.954 |   File "/usr/local/lib/python3.13/site-packages/rest_framework/views.py", line 512, in dispatch
+2025-06-29 16:27:38.954 |     response = handler(request, *args, **kwargs)
+2025-06-29 16:27:38.954 |   File "/code/account/views.py", line 74, in me
+2025-06-29 16:27:38.954 |     profile, created = Profile.objects.get_or_create(user=request.user)
+2025-06-29 16:27:38.954 |                        ^^^^^^^
+2025-06-29 16:27:38.954 | NameError: name 'Profile' is not defined
+2025-06-29 16:27:38.954 | Internal Server Error: /auth/me/
+2025-06-29 16:27:38.955 | [pid: 20|app: 0|req: 5/5] 172.18.0.1 () {52 vars in 1214 bytes} [Sun Jun 29 13:27:38 2025] GET /auth/me/ => generated 51 bytes in 29 msecs (HTTP/1.1 500) 8 headers in 286 bytes (1 switches on core 0)

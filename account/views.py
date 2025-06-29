@@ -14,6 +14,7 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView as BaseTokenVerifyView, TokenBlacklistView,
 )
 
+from .models import Profile
 from .serializers import UserProfileSerializer, RefreshTokenSerializer
 
 logger = getLogger(__name__)
