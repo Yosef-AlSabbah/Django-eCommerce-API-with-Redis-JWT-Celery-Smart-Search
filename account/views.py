@@ -71,7 +71,7 @@ class UserViewSet(BaseUserViewSet):
         """
         try:
             # Get the user's profile for serialization
-            profile = request.user.profile
+            profile, created = Profile.objects.get_or_create(user=request.user)
 
             if request.method == "GET":
                 serializer = UserProfileSerializer(profile, context={'request': request})
