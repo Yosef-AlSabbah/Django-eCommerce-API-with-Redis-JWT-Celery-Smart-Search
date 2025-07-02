@@ -290,13 +290,11 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
             logger.info("Listing products for user id: %s", request.user.id)
             queryset = self.get_queryset()
             tag_slug = request.query_params.get(r'tag')
-            category_slug = request.query_params.get(r'category')
+            # Removed manual category filtering - now handled by ProductFilter
             if tag_slug:
                 tag = get_object_or_404(Tag, slug=tag_slug)
                 queryset = queryset.filter(tags__in=[tag])
-            if category_slug:
-                category = get_object_or_404(Category, slug=category_slug)
-                queryset = queryset.filter(category=category)
+
             recommender = Recommender()
             cart = Cart(request)
             recommendation_base = [item[r'product'] for item in cart]

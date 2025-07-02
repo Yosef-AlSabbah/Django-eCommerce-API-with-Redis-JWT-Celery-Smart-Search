@@ -20,6 +20,7 @@ class ProductFilter(FilterSet):
             'description': ['icontains'],
             'price': ['exact', 'lt', 'gt', 'range'],
             'stock': ['exact', 'lt', 'gt'],
+            'category__slug': ['exact'],
             'category__name': ['exact', 'icontains'],
             'tags__name': ['exact', 'icontains'],
         }

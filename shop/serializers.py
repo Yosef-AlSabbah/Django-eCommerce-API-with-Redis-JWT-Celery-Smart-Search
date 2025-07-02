@@ -17,8 +17,9 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    # Use PrimaryKeyRelatedField for input and CategorySerializer for output
-    category = serializers.PrimaryKeyRelatedField(
+    # Use SlugRelatedField for input to accept category slug and CategorySerializer for output
+    category = serializers.SlugRelatedField(
+        slug_field='slug',
         queryset=Category.objects.all(),
         write_only=True
     )
