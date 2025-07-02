@@ -1,13 +1,21 @@
 from logging import getLogger
 
+from django.shortcuts import render
+from django.views import View
 from djoser.views import UserViewSet as BaseUserViewSet
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView as BaseTokenObtainPairView,
+    TokenRefreshView as BaseTokenRefreshView,
+    TokenVerifyView as BaseTokenVerifyView, TokenBlacklistView,
+)
 
 from .models import Profile
-from .serializers import UserProfileSerializer
+from .serializers import UserProfileSerializer, RefreshTokenSerializer
 
 logger = getLogger(__name__)
 
@@ -243,3 +251,124 @@ class UserViewSet(BaseUserViewSet):
             return Response({
                 "error": "Unable to check staff status"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TokenObtainPairView(BaseTokenObtainPairView):
+    """
+    Handle POST requests to obtain a new pair of access and refresh tokens.
+    """
+
+    @extend_schema(
+        operation_id="token_obtain",
+        description="Obtain a new pair of access and refresh tokens.",
+        tags=["User Authentication"],
+        responses={
+            200: OpenApiResponse(description="Token successfully obtained."),
+            400: OpenApiResponse(description="Invalid credentials."),
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        try:
+            response = super().post(request, *args, **kwargs)
+            return Response({
+                "message": "Token successfully obtained",
+                "data": response.data
+            }, status=response.status_code)
+        except Exception as e:
+            logger.error(f"Error during token obtain: {e}", exc_info=True)
+            raise
+
+
+class TokenRefreshView(BaseTokenRefreshView):
+    """
+    Handle POST requests to refresh an access token using a refresh token.
+    """
+
+    @extend_schema(
+        operation_id="token_refresh",
+        description="Refresh an access token using a refresh token.",
+        tags=["User Authentication"],
+        responses={
+            200: OpenApiResponse(description="Access token successfully refreshed."),
+            400: OpenApiResponse(description="Invalid refresh token."),
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        try:
+            response = super().post(request, *args, **kwargs)
+            return Response({
+                "message": "Access token successfully refreshed",
+                "data": response.data
+            }, status=response.status_code)
+        except Exception as e:
+            logger.error(f"Error during token refresh: {e}", exc_info=True)
+            raise
+
+
+class TokenVerifyView(BaseTokenVerifyView):
+    """
+    Verify if an access token is valid.
+    """
+
+    @extend_schema(
+        operation_id="token_verify",
+        description="Verify if an access token is valid.",
+        tags=["User Authentication"],
+        responses={
+            200: OpenApiResponse(description="Token is valid."),
+            401: OpenApiResponse(description="Token is invalid or expired."),
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        try:
+            response = super().post(request, *args, **kwargs)
+            return Response({
+                "message": "Token is valid",
+                "data": response.data
+            }, status=response.status_code)
+        except Exception as e:
+            logger.error(f"Error during token verification: {e}", exc_info=True)
+            raise
+
+
+class TokenDestroyView(TokenBlacklistView):
+    """
+    Log out the user by blacklisting their refresh token.
+    """
+    serializer_class = RefreshTokenSerializer
+
+    @extend_schema(
+        operation_id="logout_user",
+        description="Log out the user by blacklisting their refresh token.",
+        tags=["User Authentication"],
+        request=RefreshTokenSerializer,
+        responses={
+            205: OpenApiResponse(description="Successfully logged out"),
+            400: OpenApiResponse(description="Invalid Token"),
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+            refresh_token = serializer.validated_data["refresh"]
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({
+                "message": "Successfully logged out"
+            }, status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            logger.error(f"Error during logout: {e}", exc_info=True)
+            raise
+
+
+class ActivateView(View):
+    def get(self, request, uid, token):
+        return render(
+            request,
+            'account/activate.html',
+            {
+                'uid': uid,
+                'token': token,
+            }
+        )
