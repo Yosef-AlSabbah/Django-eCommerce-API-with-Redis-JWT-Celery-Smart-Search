@@ -1,6 +1,8 @@
 from logging import getLogger
 
 from django.shortcuts import get_object_or_404
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from drf_spectacular.utils import (
     extend_schema,
     OpenApiResponse,
@@ -17,6 +19,7 @@ from .serializers import CartSerializer, AddToCartSerializer
 logger = getLogger(__name__)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 @extend_schema_view(
     list=extend_schema(
         operation_id="cart_retrieve_list",

@@ -92,10 +92,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
         :param text_data:
         :param bytes_data:
         """
-        text_data_json = json.loads(text_data)
-        message = text_data_json.get('message')
+        try:
+            text_data_json = json.loads(text_data)
+        except json.JSONDecodeError:
+            await self.send(text_data=json.dumps({
+                'error': 'Invalid JSON format'
+            }))
+            return
+
+        message = text_data_json.get('message', '').strip()
 
         if not message:
+            await self.send(text_data=json.dumps({
+                'error': 'Message content is required'
+            }))
+            return
+
+        # Add message length validation
+        if len(message) > 1000:  # Adjust limit as needed
+            await self.send(text_data=json.dumps({
+                'error': 'Message too long. Maximum 1000 characters allowed.'
+            }))
             return
 
         now = timezone.now()
@@ -105,12 +122,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # Seller is sending - recipient should be the buyer
             recipient_username = text_data_json.get('recipient')
             if not recipient_username:
+                await self.send(text_data=json.dumps({
+                    'error': 'Recipient username is required when seller sends message'
+                }))
                 return
             User = get_user_model()
 
             try:
                 recipient = await sync_to_async(User.objects.get)(username=recipient_username)
             except User.DoesNotExist:
+                await self.send(text_data=json.dumps({
+                    'error': 'Recipient user not found'
+                }))
                 return
         else:
             # Buyer is sending - recipient is the seller
@@ -124,16 +147,31 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'message': message,
                 'sender': self.user.username,
                 'datetime': now.isoformat(),
+                'message_id': None,  # Will be set after saving to DB
             }
         )
 
         # Save message to database
-        await Message.objects.acreate(
-            sender=self.user,
-            recipient=recipient,
-            product=self.product,
-            content=message
-        )
+        try:
+            saved_message = await Message.objects.acreate(
+                sender=self.user,
+                recipient=recipient,
+                product=self.product,
+                content=message
+            )
+
+            # Send confirmation back to sender with message ID
+            await self.send(text_data=json.dumps({
+                'type': 'message_sent',
+                'message_id': saved_message.id,
+                'timestamp': saved_message.sent_at.isoformat()
+            }))
+
+        except Exception as e:
+            await self.send(text_data=json.dumps({
+                'error': 'Failed to save message. Please try again.'
+            }))
+            return
 
     async def chat_message(self, event):
         """

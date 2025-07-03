@@ -297,7 +297,17 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
 
             recommender = Recommender()
             cart = Cart(request)
-            recommendation_base = [item[r'product'] for item in cart]
+            recommendation_base = []
+
+            # Safely extract products from cart
+            try:
+                for item in cart:
+                    if 'product' in item:
+                        recommendation_base.append(item['product'])
+            except Exception as e:
+                logger.warning(f"Error accessing cart items: {e}")
+                # Continue with empty recommendation_base if cart fails
+
             if request.user.is_authenticated:
                 recent_order_products = Product.objects.filter(order_items__order__user=request.user).distinct()[:20]
                 recommendation_base.extend(recent_order_products)
