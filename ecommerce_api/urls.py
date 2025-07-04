@@ -18,7 +18,10 @@ from debug_toolbar.toolbar import debug_toolbar_urls
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.sitemaps.views import sitemap
+from django.http import JsonResponse
 from django.urls import path, include
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 from shop.feeds import TrendingProductsFeed
@@ -28,7 +31,26 @@ sitemaps = {
     'products': ProductSitemap,
 }
 
+
+@require_http_methods(["GET"])
+def api_root(request):
+    """Root API endpoint that provides information about available endpoints"""
+    return JsonResponse({
+        'message': 'E-commerce API',
+        'version': '1.0',
+        'status': 'healthy',
+        'endpoints': {
+            'auth': '/auth/',
+            'api': '/api/v1/',
+            'admin': '/admin/',
+            'payment': '/payment/',
+            'docs': '/api/schema/swagger-ui/',
+        }
+    })
+
+
 urlpatterns = [
+    path('', api_root, name='api-root'),  # Handle root path requests
     path('auth/', include('account.urls', namespace='auth')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
@@ -52,3 +74,4 @@ if settings.DEBUG:
     from django.conf.urls.static import static
 
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

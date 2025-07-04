@@ -414,20 +414,29 @@ SITE_NAME = config('SITE_NAME')
 
 TAGGIT_CASE_INSENSITIVE = True
 
-CELERY_BROKER_URL = f"amqp://{config('RABBITMQ_DEFAULT_USER')}:{config('RABBITMQ_DEFAULT_PASS')}@{config('RABBITMQ_HOST')}:5672/"
+# Celery Configuration using Redis
+CELERY_BROKER_URL = f"redis://{config('REDIS_HOST', default='cache')}:{config('REDIS_PORT', default='6379')}/0"
+CELERY_RESULT_BACKEND = f"redis://{config('REDIS_HOST', default='cache')}:{config('REDIS_PORT', default='6379')}/0"
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 
-# Session cookie settings for React frontend
-SESSION_COOKIE_SAMESITE = 'None'
+# Session cookie settings - Fixed for admin compatibility
+SESSION_COOKIE_SAMESITE = 'Lax'  # Changed from 'None' to 'Lax' for admin compatibility
 SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
-SESSION_COOKIE_HTTPONLY = False
+SESSION_COOKIE_HTTPONLY = True  # Changed to True for security and admin compatibility
 SESSION_COOKIE_AGE = 1209600  # 2 weeks
+SESSION_SAVE_EVERY_REQUEST = True  # Ensure sessions are saved on every request
 
-# CSRF settings for API
-CSRF_COOKIE_SAMESITE = 'None'
+# CSRF settings - Updated for better compatibility
+CSRF_COOKIE_SAMESITE = 'Lax'  # Changed from 'None' to 'Lax'
 CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_HTTPONLY = False  # Explicitly set for compatibility
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
+    'http://localhost:8000',  # Added for admin access
 ]
