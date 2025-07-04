@@ -26,6 +26,19 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+CORS_EXPOSE_HEADERS = ['csrftoken', 'sessionid']
 
 # Application definition
 #      ╭──────────────────────────────────────────────────────────╮
@@ -426,15 +439,15 @@ SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 
 # Session cookie settings - Fixed for admin compatibility
-SESSION_COOKIE_SAMESITE = 'Lax'  # Changed from 'None' to 'Lax' for admin compatibility
-SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = False
 SESSION_COOKIE_HTTPONLY = True  # Changed to True for security and admin compatibility
 SESSION_COOKIE_AGE = 1209600  # 2 weeks
 SESSION_SAVE_EVERY_REQUEST = True  # Ensure sessions are saved on every request
 
 # CSRF settings - Updated for better compatibility
-CSRF_COOKIE_SAMESITE = 'Lax'  # Changed from 'None' to 'Lax'
-CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = False
 CSRF_COOKIE_HTTPONLY = False  # Explicitly set for compatibility
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
