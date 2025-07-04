@@ -5,7 +5,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from shop.models import Product
+
 from .models import Message
 
 
@@ -39,6 +39,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         self.product_id = self.scope['url_route']['kwargs']['product_id']
+
+        from shop.models import Product  # Import Product here
 
         try:
             self.product = await Product.objects.aget(product_id=self.product_id)

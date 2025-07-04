@@ -1,6 +1,6 @@
 services:
   database:
-    image: postgres:17.4
+    image: postgres:17-alpine
     container_name: database
     restart: always
     ports:
@@ -18,7 +18,7 @@ services:
       retries: 5
 
   cache:
-    image: redis:7.4.2
+    image: redis:8.0-alpine
     container_name: cache
     restart: always
     ports:
@@ -65,6 +65,9 @@ services:
       - .:/code
     ports:
       - "80:80"
+    command: [ "/code/wait-for-it.sh", "web:8000", "--", "nginx", "-g", "daemon off;" ]
+    depends_on:
+      - web
 
 volumes:
   database:

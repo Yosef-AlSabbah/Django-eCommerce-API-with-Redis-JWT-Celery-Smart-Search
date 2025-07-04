@@ -56,4 +56,6 @@ urlpatterns = [
         UserViewSet.as_view({'get': 'me', 'put': 'me', 'patch': 'me', 'delete': 'me'}),
         name='current_user'
     ),
+    path('staff-check/', UserViewSet.as_view({'get': 'staff_check'}), name='staff_check'),
 ]
+
