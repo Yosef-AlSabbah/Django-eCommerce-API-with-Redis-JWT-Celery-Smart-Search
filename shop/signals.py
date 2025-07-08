@@ -7,15 +7,36 @@ from .models import Review
 
 
 @receiver([post_save, post_delete], sender=Category)
-def invalidate_category_cache(sender, instance, **kwargs):
+def invalidate_category_cache(sender, instance, created=False, **kwargs):
     """
-    Invalidate the cache for the category list when a category is created or deleted.
+    Invalidate the cache for the category list when a category is created, updated or deleted.
     """
-    from django.core.cache import cache
+    import logging
+    logger = logging.getLogger(__name__)
 
-    # Clear the cache for the category list
-    cache.delete_pattern('*category_list*')
+    action = "created" if kwargs.get('created', False) else "updated" if sender == post_save else "deleted"
+    logger.info(f"Category {instance.name} was {action}, invalidating cache...")
 
+    # Clear the custom category cache key
+    try:
+        # Clear the specific cache key used in the views
+        cache.delete('category_list_custom')
+        logger.info("Category cache invalidated successfully")
+
+        # Also clear any cache_page patterns if they exist from other views
+        if hasattr(cache, 'delete_pattern'):
+            cache.delete_pattern('*category_list*')
+            cache.delete_pattern('*views.decorators.cache.cache_page*category_list*')
+            logger.info("Cache patterns also cleared")
+
+    except Exception as e:
+        logger.error(f"Error invalidating cache: {e}")
+        try:
+            # Fallback: Clear the entire cache if specific key deletion fails
+            cache.clear()
+            logger.info("Fallback: Entire cache cleared")
+        except Exception as fallback_e:
+            logger.error(f"Fallback cache clear also failed: {fallback_e}")
 
 @receiver(post_save, sender=Review)
 def update_rating_on_review_save(sender, instance, created, **kwargs):

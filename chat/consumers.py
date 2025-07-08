@@ -43,14 +43,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
         from shop.models import Product  # Import Product here
 
         try:
-            self.product = await Product.objects.aget(product_id=self.product_id)
+            # Use async database operations
+            self.product = await Product.objects.select_related('user').aget(product_id=self.product_id)
         except Product.DoesNotExist:
             await self.close()
             return
 
         # Create a unique room name for the seller-buyer-product combination
         # Sort user IDs to ensure same room name regardless of who connects first
-        user_ids = sorted([str(self.user.id), str(self.product.user.id)])
+        # Use sync_to_async to safely access the product.user.id
+        product_user_id = await sync_to_async(lambda: self.product.user.id)()
+        user_ids = sorted([str(self.user.id), str(product_user_id)])
         self.room_name = f'chat_product_{self.product_id}_users_{"_".join(user_ids)}'
         self.room_group_name = f'chat_{self.room_name}'
 

@@ -26,6 +26,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 
 from shop.feeds import TrendingProductsFeed
 from shop.sitemaps import ProductSitemap
+from account.views import ActivateView
 
 sitemaps = {
     'products': ProductSitemap,
@@ -52,6 +53,7 @@ def api_root(request):
 urlpatterns = [
     path('', api_root, name='api-root'),  # Handle root path requests
     path('auth/', include('account.urls', namespace='auth')),
+    path('activate/<str:uid>/<str:token>/', ActivateView.as_view(), name='activate-direct'),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),

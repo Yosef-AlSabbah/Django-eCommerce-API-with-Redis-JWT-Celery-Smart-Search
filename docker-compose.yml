@@ -42,8 +42,33 @@ services:
       - cache
       - database
 
+  stripe-cli:
+    image: stripe/stripe-cli:latest
+    container_name: stripe-cli
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      - STRIPE_API_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_DEVICE_NAME=docker-stripe-cli
+    volumes:
+      - stripe_config:/root/.config/stripe
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "while ! nc -z web 8000; do
+        echo 'Waiting for web service on port 8000...';
+        sleep 2;
+      done;
+      echo 'Web service is ready!';
+      stripe login --api-key $${STRIPE_SECRET_KEY} &&
+      stripe listen --forward-to web:8000/payment/webhook/"
+    depends_on:
+      - web
+    networks:
+      - default
 
 volumes:
   database:
   static_volume:
   media_volume:
+  stripe_config:

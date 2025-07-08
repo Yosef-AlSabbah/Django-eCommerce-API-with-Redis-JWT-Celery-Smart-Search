@@ -372,3 +372,4 @@ class ActivateView(View):
                 'token': token,
             }
         )
+

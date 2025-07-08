@@ -449,11 +449,31 @@ class CategoryViewSet(PaginationMixin, viewsets.ModelViewSet):
             self.permission_classes = [permissions.IsAdminUser]
         return super().get_permissions()
 
-    @method_decorator(cache_page(60 * 60 * 24, key_prefix=r'category_list'))
+    # Remove the cache_page decorator and implement custom caching
     def list(self, request, *args, **kwargs):
+        from django.core.cache import cache
         try:
             logger.info("Listing categories")
-            return super().list(request, *args, **kwargs)
+
+            # Create a custom cache key that we can easily invalidate
+            cache_key = 'category_list_custom'
+
+            # Check if we have cached data
+            cached_data = cache.get(cache_key)
+
+            if cached_data is None:
+                # If no cached data, get the response and cache it
+                response = super().list(request, *args, **kwargs)
+
+                # Cache the response data for 24 hours
+                cache.set(cache_key, response.data, 60 * 60 * 24)
+
+                return response
+            else:
+                # Return cached data
+                from rest_framework.response import Response
+                return Response(cached_data)
+
         except Exception as e:
             logger.error("Error listing categories: %s", e, exc_info=True)
             raise
