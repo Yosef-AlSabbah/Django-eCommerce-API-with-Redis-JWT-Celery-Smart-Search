@@ -117,25 +117,34 @@ class ReviewViewSet(viewsets.ModelViewSet):
         return Review.objects.filter(product__slug=product_slug)
 
     def perform_create(self, serializer):
+        from django.core.exceptions import ValidationError
+        from rest_framework.exceptions import PermissionDenied
+
         serializer.validated_data['user'] = self.request.user
         product_slug = self.kwargs.get('product_slug')
         try:
             product = get_object_or_404(Product, slug=product_slug)
 
-            # Check if user has purchased this product before saving
+            # Check if user has purchased this product and the order is completed before saving
             # Skip this check in test environments
             from django.conf import settings
             is_testing = getattr(settings, 'TESTING', False)
 
-            if not is_testing and not product.order_items.filter(order__user=self.request.user).exists():
-                from django.core.exceptions import ValidationError
-                raise ValidationError("You can only review products you have purchased.")
+            if not is_testing:
+                # Check if user has a completed order containing this product
+                from orders.models import Order
+                completed_order_exists = product.order_items.filter(
+                    order__user=self.request.user,
+                    order__status=Order.Status.COMPLETED
+                ).exists()
+
+                if not completed_order_exists:
+                    raise ValidationError("You can only review products you have purchased and paid for.")
 
             serializer.save(product=product)
             logger.info("Review created for product slug: %s by user id: %s", product_slug, self.request.user.id)
         except ValidationError as e:
             logger.error("Validation error creating review for product slug: %s: %s", product_slug, e)
-            from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied(detail=str(e.message))
         except Exception as e:
             logger.error("Error creating review for product slug: %s: %s", product_slug, e, exc_info=True)
