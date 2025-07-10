@@ -34,13 +34,16 @@ class OrderSerializer(serializers.ModelSerializer):
         decimal_places=2,
         read_only=True
     )
-    status = serializers.ChoiceField(choices=Order.Status.choices)
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = ['order_id', 'user', 'quantity', 'order_date', 'order_items', 'original_price', 'total_price',
                   'coupon', 'discount', 'status']
         read_only_fields = ['user', 'order_date']
+
+    def get_status(self, obj):
+        return obj.get_status_display()
 
     def update(self, instance, validated_data):
         # Check if status is in the incoming data and the user is allowed to update it
