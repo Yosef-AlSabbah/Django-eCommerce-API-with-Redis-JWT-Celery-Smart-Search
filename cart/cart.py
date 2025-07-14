@@ -110,6 +110,7 @@ class Cart:
         Clear all items from the cart by removing it from the session.
         """
         del self.session[settings.CART_SESSION_ID]
+        del self.coupon_id
         self.save()
 
     @property
@@ -127,7 +128,7 @@ class Cart:
 
             except Coupon.DoesNotExist:
                 pass
-            return None
+        return None
 
     def get_discount(self):
         """
