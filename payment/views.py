@@ -95,7 +95,7 @@ class PaymentProcessAPIView(APIView):
                 session_data["line_items"].append(
                     {
                         "price_data": {
-                            "unit_amount": int(item.price * Decimal('10')),  # Convert price to cents
+                            "unit_amount": int(item.product.price * Decimal('100')),  # Convert price to cents
                             "currency": "usd",
                             "product_data": {
                                 "name": item.product.name,  # Use the product name

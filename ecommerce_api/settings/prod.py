@@ -6,7 +6,7 @@ ADMINS = [
     ('Yousef Y', 'hypexstore@gmail.com'),
 ]
 
-ALLOWED_HOSTS = ['eCommerce.com', 'www.eCommerce.com']
+ALLOWED_HOSTS = ['eCommerce.com', 'www.eCommerce.com', 'web']
 
 REDIS_URL = 'redis://cache:6379'
 CACHES['default']['LOCATION'] = REDIS_URL
