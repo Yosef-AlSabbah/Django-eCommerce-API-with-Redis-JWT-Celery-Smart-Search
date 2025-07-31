@@ -69,7 +69,10 @@ class ProductSerializer(serializers.ModelSerializer):
             cache.set(cache_key, cached_data, 604800)  # Cache for 1 week (604800 seconds)
         else:
             # Update cache incrementally
-            cached_data["average"] = cached_data["total_rating"] / cached_data["count"]
+            if cached_data["count"] > 0:
+                cached_data["average"] = cached_data["total_rating"] / cached_data["count"]
+            else:
+                cached_data["average"] = 0.0
 
         return {"average": cached_data["average"], "count": cached_data["count"]}
 
