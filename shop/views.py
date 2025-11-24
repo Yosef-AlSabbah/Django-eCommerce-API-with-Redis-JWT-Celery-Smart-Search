@@ -295,6 +295,8 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
     @method_decorator(cache_page(60 * 5, key_prefix=r'product_list'))
     @method_decorator(vary_on_headers(r'Authorization'))
     def list(self, request, *args, **kwargs):
+        from .tasks import update_user_recommendations
+        from django.core.cache import cache
         try:
             logger.info("Listing products for user id: %s", request.user.id)
             queryset = self.get_queryset()
@@ -304,30 +306,13 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
                 tag = get_object_or_404(Tag, slug=tag_slug)
                 queryset = queryset.filter(tags__in=[tag])
 
-            recommender = Recommender()
-            cart = Cart(request)
-            recommendation_base = []
-
-            # Safely extract products from cart
-            try:
-                for item in cart:
-                    if 'product' in item:
-                        recommendation_base.append(item['product'])
-            except Exception as e:
-                logger.warning(f"Error accessing cart items: {e}")
-                # Continue with empty recommendation_base if cart fails
-
             if request.user.is_authenticated:
-                recent_order_products = Product.objects.filter(order_items__order__user=request.user).distinct()[:20]
-                recommendation_base.extend(recent_order_products)
-            recommended_products = []
-            if recommendation_base:
-                recommended_products = recommender.suggest_products_for(recommendation_base, max_results=60)
-            if len(recommended_products) < 20:
-                fallback_random_products = list(Product.objects.all().order_by(r'?')[:40])
-                recommended_products.extend(fallback_random_products)
-            recommended_ids = [product.product_id for product in recommended_products]
-            self.queryset = queryset.filter(product_id__in=recommended_ids)
+                recommended_ids = cache.get(f'user_recommendations:{request.user.id}')
+                if recommended_ids is None:
+                    update_user_recommendations.delay(request.user.id)
+                    # Return a default set of products for now
+                    recommended_ids = list(Product.objects.all().order_by('?')[:20].values_list('product_id', flat=True))
+                self.queryset = queryset.filter(product_id__in=recommended_ids)
             return super().list(request, *args, **kwargs)
         except Exception as e:
             logger.error("Error listing products: %s", e, exc_info=True)
