@@ -1,7 +1,8 @@
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
+from asgiref.sync import sync_to_async
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -25,7 +26,8 @@ class ChatAppTests(APITestCase):
             price=10,
             stock=5,
             category=self.category,
-            user=self.seller
+            user=self.seller,
+            weight=1, length=1, width=1, height=1
         )
         self.url = reverse('api-v1:chat', kwargs={'product_id': str(self.product.product_id)})
 
@@ -57,6 +59,11 @@ class ChatAppTests(APITestCase):
         self.assertIn('data', response.data)
 
 
+@override_settings(CHANNEL_LAYERS={
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+})
 class ChatConsumerTest(TestCase):
     def setUp(self):
         # Create test users
@@ -66,7 +73,10 @@ class ChatConsumerTest(TestCase):
 
         # Create a test product
         self.category = Category.objects.create(name='TestCat', slug='testcat')
-        self.product = Product.objects.create(name='Test Product', user=self.seller, price=10.00, stock=5, category=self.category)
+        self.product = Product.objects.create(
+            name='Test Product', user=self.seller, price=10.00, stock=5, category=self.category,
+            weight=1, length=1, width=1, height=1
+        )
 
     async def test_chat_consumer(self):
         # Simulate WebSocket connection for the buyer
@@ -86,16 +96,25 @@ class ChatConsumerTest(TestCase):
             'message': message
         })
 
-        # Receive the message from the WebSocket
-        response = await communicator.receive_json_from()
+        # Receive messages from the WebSocket until we get the one we want
+        response = None
+        for _ in range(2): # We expect two messages
+            response = await communicator.receive_json_from()
+            if 'message' in response:
+                break
+
+        self.assertIsNotNone(response)
         self.assertEqual(response['message'], message)
         self.assertEqual(response['sender'], self.buyer.username)
 
         # Check if the message was saved in the database
-        saved_message = Message.objects.get(content=message)
-        self.assertEqual(saved_message.sender, self.buyer)
-        self.assertEqual(saved_message.recipient, self.seller)
-        self.assertEqual(saved_message.product, self.product)
+        saved_message = await Message.objects.aget(content=message)
+        sender = await sync_to_async(lambda: saved_message.sender)()
+        recipient = await sync_to_async(lambda: saved_message.recipient)()
+        product = await sync_to_async(lambda: saved_message.product)()
+        self.assertEqual(sender, self.buyer)
+        self.assertEqual(recipient, self.seller)
+        self.assertEqual(product, self.product)
 
         # Disconnect the WebSocket
         await communicator.disconnect()

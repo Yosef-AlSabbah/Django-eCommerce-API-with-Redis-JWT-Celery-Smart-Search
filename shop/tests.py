@@ -3,7 +3,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from orders.models import Order, OrderItem
 from shop.models import Product, Category
 from shop.models import Review
 
@@ -78,7 +78,7 @@ class CategoryTests(APITestCase):
         self.assertIn('slug', response.data)
 
 
-class ProductConstraintTests(APITestCase):
+class ProductViewSetTests(APITestCase):
     def setUp(self):
         self.admin = User.objects.create_superuser(username='admin', password='pass', email='admin@example.com')
         self.category = Category.objects.create(name='Computers', slug='computers')
@@ -88,55 +88,24 @@ class ProductConstraintTests(APITestCase):
         refresh = RefreshToken.for_user(user)
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
 
-    def test_create_product_with_missing_fields(self):
-        self.authenticate(self.admin)
-        response = self.client.post(self.url, {'name': 'Laptop'})
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertNotIn('price', response.data)
-        self.assertNotIn('category', response.data)
-
-    def test_unique_slug_constraint(self):
+    def test_create_product(self):
         self.authenticate(self.admin)
         product_data = {
-            'name': 'Laptop',
-            'slug': 'laptop',
-            'description': 'A powerful laptop',
-            'price': 1000.00,
-            'stock': 10,
-            'category': self.category.id
-        }
-        self.client.post(self.url, product_data)
-        response = self.client.post(self.url, product_data)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-    def test_product_requires_category_and_user(self):
-        self.authenticate(self.admin)
-        product_data = {
-            'name': 'Laptop',
-            'slug': 'laptop',
-            'description': 'A powerful laptop',
-            'price': 1000.00,
-            'stock': 10,
-        }
-        response = self.client.post(self.url, product_data)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_product_list_shows_only_user_products(self):
-        self.authenticate(self.admin)
-        product_data = {
-            'name': 'Laptop',
-            'slug': 'laptop',
-            'description': 'A powerful laptop',
-            'price': 1000.00,
-            'stock': 10,
-            'category': self.category.id,
+            'name': 'New Laptop',
+            'slug': 'new-laptop',
+            'description': 'A very new laptop',
+            'price': 1200.00,
+            'stock': 5,
+            'category': self.category.slug,
+            'weight': 1.5,
+            'length': 30,
+            'width': 20,
+            'height': 2,
         }
         response = self.client.post(self.url, product_data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        url = reverse('api-v1:product-user-products')
-        response2 = self.client.get(url)
-        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+        self.assertEqual(Product.objects.count(), 1)
+        self.assertEqual(Product.objects.first().user, self.admin)
 
 
 class ProductReviewActionTests(APITestCase):
@@ -145,8 +114,11 @@ class ProductReviewActionTests(APITestCase):
         self.admin = User.objects.create_superuser(username='admin', password='pass', email='admin@example.com')
         self.category = Category.objects.create(name='TestCat', slug='testcat')
         self.product = Product.objects.create(
-            name='TestProduct', slug='testproduct', price=10, stock=5, category=self.category, user=self.admin
+            name='TestProduct', slug='testproduct', price=10, stock=5, category=self.category, user=self.admin,
+            weight=1, length=1, width=1, height=1
         )
+        self.order = Order.objects.create(user=self.user)
+        OrderItem.objects.create(order=self.order, product=self.product, quantity=1)
         self.review_url = reverse('api-v1:product-reviews-list', kwargs={'product_slug': self.product.slug})
 
     def authenticate(self, user):

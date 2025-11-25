@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
 
-from .models import Profile
+from .models import Profile, Address
 
 User = get_user_model()
 
@@ -100,3 +100,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class RefreshTokenSerializer(serializers.Serializer):
     refresh = serializers.CharField(required=True, help_text="Refresh token to be blacklisted")
+
+
+class AddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Address
+        fields = ['id', 'province', 'city', 'city_code', 'postal_code', 'full_address', 'receiver_name', 'receiver_phone']

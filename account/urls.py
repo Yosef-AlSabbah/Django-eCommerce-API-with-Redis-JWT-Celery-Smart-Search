@@ -7,6 +7,8 @@ from .views import (
     TokenRefreshView,
     TokenVerifyView,
     TokenDestroyView, ActivateView,
+    RequestOTP,
+    VerifyOTP,
 )
 
 # Application namespace to avoid conflicts
@@ -57,5 +59,9 @@ urlpatterns = [
         name='current_user'
     ),
     path('staff-check/', UserViewSet.as_view({'get': 'staff_check'}), name='staff_check'),
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ OTP AUTHENTICATION URLS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    path('request-otp/', RequestOTP.as_view(), name='request-otp'),
+    path('verify-otp/', VerifyOTP.as_view(), name='verify-otp'),
 ]
 

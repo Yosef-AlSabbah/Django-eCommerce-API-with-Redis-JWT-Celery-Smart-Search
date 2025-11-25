@@ -22,7 +22,8 @@ class CartTests(TestCase):
             name='Test Product',
             price=decimal.Decimal('10.00'),
             stock=100,
-            category=self.category
+            category=self.category,
+            weight=1, length=1, width=1, height=1
         )
         self.cart_session_id = self.client.session.get('cart', {})
 
@@ -60,7 +61,8 @@ class CartAPITests(APITestCase):
             name='Test Product',
             price=Decimal('10.00'),
             stock=100,
-            category=self.category
+            category=self.category,
+            weight=1, length=1, width=1, height=1
         )
         self.cart_url = reverse('api-v1:cart-list')
         self.client.login(username='testuser', password='testpass')
