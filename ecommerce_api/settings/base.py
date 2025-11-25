@@ -83,9 +83,12 @@ CUSTOM_APPS = [
     'cart.apps.CartConfig',  # Cart application for managing shopping carts
     'orders.apps.OrdersConfig',  # Orders application for managing customer orders
     'coupons.apps.CouponsConfig',  # Coupons application for discounts
+
     'chat.apps.ChatConfig',  # Chat application for real-time communication
     'payment.apps.PaymentConfig',  # Payment application for processing transactions
     'account.apps.AccountConfig',  # Account application for user management
+    'shipping.apps.ShippingConfig',
+    'sms.apps.SmsConfig',
 ]
 
 # Combine all applications into the INSTALLED_APPS setting
@@ -372,6 +375,15 @@ STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY')
 STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY')
 STRIPE_API_VERSION = '2024-04-10'
 STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET')
+
+SMS_IR_OTP_TEMPLATE_ID = config('SMS_IR_OTP_TEMPLATE_ID', default=123456)
+
+POSTEX_SENDER_NAME = config('POSTEX_SENDER_NAME', default='Your Company Name')
+POSTEX_SENDER_PHONE = config('POSTEX_SENDER_PHONE', default='Your Company Phone')
+POSTEX_SENDER_ADDRESS = config('POSTEX_SENDER_ADDRESS', default='Your Company Address')
+POSTEX_SENDER_POSTAL_CODE = config('POSTEX_SENDER_POSTAL_CODE', default='Your Company Postal Code')
+POSTEX_FROM_CITY_CODE = config('POSTEX_FROM_CITY_CODE', default=1, cast=int)
+POSTEX_SERVICE_TYPE = config('POSTEX_SERVICE_TYPE', default='standard')
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',

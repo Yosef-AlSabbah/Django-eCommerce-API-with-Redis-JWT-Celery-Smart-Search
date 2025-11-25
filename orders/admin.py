@@ -42,9 +42,9 @@ class OrderAdmin(admin.ModelAdmin):
     This class customizes the display, filtering, searching, and ordering of orders,
     and includes inline management of associated OrderItems.
     """
-    list_display = ('order_id', 'user', 'status', 'order_date', 'updated', 'total_price', order_payment)
+    list_display = ('order_id', 'user', 'status', 'order_date', 'updated', 'total_payable', order_payment)
     list_filter = ('status', 'order_date', 'updated')
     search_fields = ('user__username', 'order_id')
     ordering = ('-order_date',)
     inlines = [OrderItemInline]
-    readonly_fields = ('total_price', 'order_id', 'order_date')  # Make these fields read-only
+    readonly_fields = ('total_payable', 'order_id', 'order_date')  # Make these fields read-only

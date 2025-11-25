@@ -1,21 +1,30 @@
 from logging import getLogger
+import random
+from datetime import timedelta
 
+from django.conf import settings
 from django.shortcuts import render
+from django.utils import timezone
 from django.views import View
 from djoser.views import UserViewSet as BaseUserViewSet
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import (
+    TokenBlacklistView,
     TokenObtainPairView as BaseTokenObtainPairView,
     TokenRefreshView as BaseTokenRefreshView,
-    TokenVerifyView as BaseTokenVerifyView, TokenBlacklistView,
+    TokenVerifyView as BaseTokenVerifyView,
 )
 
-from .models import Profile
-from .serializers import UserProfileSerializer, RefreshTokenSerializer
+from sms.models import OTPCode
+from sms.providers import SmsIrProvider
+
+from .models import Profile, UserAccount
+from .serializers import RefreshTokenSerializer, UserProfileSerializer
 
 logger = getLogger(__name__)
 
@@ -373,3 +382,65 @@ class ActivateView(View):
             }
         )
 
+
+def generate_otp():
+    return str(random.randint(100000, 999999))
+
+
+class RequestOTP(APIView):
+    def post(self, request):
+        phone = request.data.get('phone')
+        if not phone:
+            return Response({'error': 'Phone number is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp_code = generate_otp()
+        expires_at = timezone.now() + timedelta(minutes=5)
+
+        otp = OTPCode.objects.create(phone=phone, code=otp_code, expires_at=expires_at)
+
+        sms_provider = SmsIrProvider()
+        template_id = settings.SMS_IR_OTP_TEMPLATE_ID
+        response = sms_provider.send_otp(phone, otp_code, template_id)
+
+        if response.get('status') == 1:
+            return Response({'message': 'OTP sent successfully'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Failed to send OTP'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class VerifyOTP(APIView):
+    def post(self, request):
+        phone = request.data.get('phone')
+        code = request.data.get('code')
+
+        if not phone or not code:
+            return Response({'error': 'Phone and code are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            otp = OTPCode.objects.get(phone=phone, code=code, used=False)
+        except OTPCode.DoesNotExist:
+            return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if otp.is_expired():
+            return Response({'error': 'OTP has expired'}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp.used = True
+        otp.save()
+
+        try:
+            user = UserAccount.objects.get(phone_number=phone)
+        except UserAccount.DoesNotExist:
+            user = UserAccount.objects.create_user(
+                email=None,  # Email can be set later
+                phone_number=phone,
+                password=None
+            )
+            # You might want to set a flag to indicate that the user needs to complete their profile
+            user.is_active = True
+            user.save()
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        })
