@@ -113,6 +113,10 @@ class ProductSerializer(serializers.ModelSerializer):
             'category_detail',
             'tags',
             'rating',
+            'weight',
+            'length',
+            'width',
+            'height',
         ]
 
 
