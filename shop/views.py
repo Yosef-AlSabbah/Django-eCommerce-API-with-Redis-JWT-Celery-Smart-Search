@@ -135,7 +135,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 from orders.models import Order
                 completed_order_exists = product.order_items.filter(
                     order__user=self.request.user,
-                    order__status=Order.Status.COMPLETED
+                    order__status=Order.Status.PAID
                 ).exists()
 
                 if not completed_order_exists:
