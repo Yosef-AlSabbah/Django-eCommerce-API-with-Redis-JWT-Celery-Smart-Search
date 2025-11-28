@@ -90,10 +90,18 @@ class Order(models.Model):
         total_cost = self.get_total_cost_before_discount()
         return total_cost - self.get_discount()
 
-    def get_stripe_url(self):
-        # This method is likely deprecated as stripe_id is removed.
-        # Keeping it for now to avoid breaking other parts of the code.
-        return ''
+    def calculate_total_payable(self):
+        """
+        Calculates the final amount to be paid by the user.
+        """
+        self.subtotal = self.get_total_cost_before_discount()
+        self.discount_amount = self.get_discount()
+        # Assuming tax and shipping are calculated elsewhere and set on the instance
+        # For now, let's represent the calculation logic.
+        # In a real scenario, tax_amount and shipping_cost would be determined by other services or logic.
+        total = self.subtotal - self.discount_amount + self.shipping_cost + self.tax_amount
+        self.total_payable = total
+        return self.total_payable
 
     def __str__(self):
         return f"Order: {self.order_id} by {self.user.username if self.user else 'Deleted User'}"
