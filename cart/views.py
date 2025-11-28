@@ -178,3 +178,26 @@ class CartViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         except Exception as e:
             logger.error(f"Error removing product from cart: {e}", exc_info=True)
             raise
+
+    @action(detail=False, methods=['delete'], url_path='clear')
+    @extend_schema(
+        operation_id="cart_clear",
+        description="Clear all items from the cart.",
+        tags=["Cart"],
+        responses={
+            204: OpenApiResponse(description="Cart cleared successfully."),
+        },
+    )
+    def clear_cart(self, request):
+        """
+        Clear all items from the cart.
+
+        Args:
+            request: The HTTP request object.
+
+        Returns:
+            Response: An empty response with a 204 status code.
+        """
+        cart = Cart(request)
+        cart.clear()
+        return Response(status=status.HTTP_204_NO_CONTENT)
