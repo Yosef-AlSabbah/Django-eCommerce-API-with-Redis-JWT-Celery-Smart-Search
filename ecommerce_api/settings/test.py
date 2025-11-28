@@ -1,29 +1,44 @@
 from .base import *
 
+# Database
+# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 
+# Cache
+# https://docs.djangoproject.com/en/5.0/ref/settings/#caches
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
     }
 }
 
+# Channels
+# https://channels.readthedocs.io/en/latest/topics/testing.html
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
     },
 }
 
-SESSION_ENGINE = "django.contrib.sessions.backends.db"
-
+# Celery
+# http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-always-eager
 CELERY_TASK_ALWAYS_EAGER = True
-CELERY_BROKER_URL = 'memory://'
-CELERY_RESULT_BACKEND = 'db+sqlite:///results.sqlite'
+CELERY_TASK_EAGER_PROPAGATES = True
 
-# Disable throttling for tests
-REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
+# Django REST Framework
+# https://www.django-rest-framework.org/api-guide/settings/
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    "DEFAULT_THROTTLE_CLASSES": [],
+    "DEFAULT_THROTTLE_RATES": {},
+}
+
+# Sessions
+# https://docs.djangoproject.com/en/5.0/ref/settings/#session-engine
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
