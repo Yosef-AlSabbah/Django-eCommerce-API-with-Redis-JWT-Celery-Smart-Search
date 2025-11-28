@@ -38,20 +38,26 @@ class ApiResponseRenderer(renderers.JSONRenderer):
         # Handle error responses (status codes >= 400)
         if response and response.status_code >= 400:
             if isinstance(data, dict):
-                message = data.pop('message', 'An error occurred')
+                # Try to extract a meaningful message from common error keys
+                if 'message' in data:
+                    message = data.pop('message')
+                elif 'error' in data:
+                    message = data.pop('error')
+                elif 'detail' in data:
+                    message = data.pop('detail')
+                else:
+                    message = 'An error occurred'
+
                 errors = data if data else None
             else:
+                # Handle non-dict data (e.g., list of strings)
                 message = 'An error occurred'
-                errors = None
+                errors = {'detail': data}
 
             return super().render(
-                ApiResponse.error(
-                    message=message,
-                    status_code=response.status_code,
-                    errors=errors
-                ).data,
+                ApiResponse.error(message=message, status_code=response.status_code, errors=errors).data,
                 accepted_media_type,
-                renderer_context
+                renderer_context,
             )
 
         # Handle success responses (status codes < 400)

@@ -1,6 +1,5 @@
 from .base import *
 
-# Use an in-memory SQLite database for tests to avoid external dependencies
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -8,21 +7,23 @@ DATABASES = {
     }
 }
 
-# Simplify password hashing to speed up tests
-PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.MD5PasswordHasher',
-]
-
-# Disable caching for tests
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     }
 }
 
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
+
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_BROKER_URL = 'memory://'
+CELERY_RESULT_BACKEND = 'db+sqlite:///results.sqlite'
+
 # Disable throttling for tests
 REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
-REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {}
-
-# Set TESTING flag to True
-TESTING = True
