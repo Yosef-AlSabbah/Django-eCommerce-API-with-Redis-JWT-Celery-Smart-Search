@@ -5,6 +5,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from cart.cart import Cart
 from coupons.models import Coupon
 from coupons.serializers import CouponSerializer
 
@@ -117,6 +118,7 @@ class CouponViewSet(viewsets.ModelViewSet):
         Apply a coupon by its code.
         """
         try:
+            cart = Cart(request)
             code = request.data.get('code')
             if not code:
                 return Response(
@@ -135,6 +137,18 @@ class CouponViewSet(viewsets.ModelViewSet):
             if not coupon.is_valid():
                 return Response(
                     {"detail": "Coupon is not valid at this time."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if coupon.usage_count >= coupon.max_usage:
+                return Response(
+                    {"detail": "This coupon has reached its usage limit."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if cart.get_total_price() < coupon.min_purchase_amount:
+                return Response(
+                    {"detail": f"A minimum purchase of {coupon.min_purchase_amount} is required to use this coupon."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
