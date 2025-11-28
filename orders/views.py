@@ -5,6 +5,7 @@ from drf_spectacular.utils import (
     OpenApiResponse,
     extend_schema_view,
 )
+from django.db import transaction
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -90,6 +91,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAdminOrOwner]
         return [permission() for permission in permission_classes]
 
+    @transaction.atomic
     def create(self, request, *args, **kwargs):
         logger.info("Creating order for user id: %s", request.user.id)
         try:
@@ -107,6 +109,23 @@ class OrderViewSet(viewsets.ModelViewSet):
                 logger.warning("Invalid coupon ID in session for user id: %s", request.user.id)
                 return Response({"error": "Invalid coupon."}, status=status.HTTP_400_BAD_REQUEST)
 
+            if coupon:
+                if not coupon.is_valid():
+                    return Response(
+                        {"detail": "Coupon is not valid at this time."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                if coupon.usage_count >= coupon.max_usage:
+                    return Response(
+                        {"detail": "This coupon has reached its usage limit."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                if cart.get_total_price() < coupon.min_purchase_amount:
+                    return Response(
+                        {"detail": f"A minimum purchase of {coupon.min_purchase_amount} is required to use this coupon."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
             order = Order.objects.create(
                 user=request.user,
                 quantity=len(cart),
@@ -120,6 +139,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                     product=item['product'],
                     quantity=item['quantity']
                 )
+
+            if coupon:
+                coupon.increment_usage_count()
+
             cart.clear()
             send_order_confirmation_email.delay(order.order_id)
             serializer = self.get_serializer(order)
