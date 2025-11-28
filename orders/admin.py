@@ -13,27 +13,6 @@ class OrderItemInline(admin.TabularInline):
     readonly_fields = ('price',)  # Display the calculated price as read-only
 
 
-def order_payment(obj):
-    """
-    Generates a clickable link to the Stripe payment page for the given order.
-
-    Args:
-        obj: The order object containing the Stripe ID and URL.
-
-    Returns:
-        str: A safe HTML string with a link to the Stripe payment page if the
-        Stripe ID exists, otherwise an empty string.
-    """
-    url = obj.get_stripe_url()
-    if obj.stripe_id:
-        html = f'<a href="{url}" target="_blank">{obj.stripe_id}</a>'
-        return mark_safe(html)
-    return ''
-
-
-order_payment.short_description = 'Stripe payment'
-
-
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     """
@@ -42,7 +21,7 @@ class OrderAdmin(admin.ModelAdmin):
     This class customizes the display, filtering, searching, and ordering of orders,
     and includes inline management of associated OrderItems.
     """
-    list_display = ('order_id', 'user', 'status', 'order_date', 'updated', 'total_payable', order_payment)
+    list_display = ('order_id', 'user', 'status', 'order_date', 'updated', 'total_payable')
     list_filter = ('status', 'order_date', 'updated')
     search_fields = ('user__username', 'order_id')
     ordering = ('-order_date',)
