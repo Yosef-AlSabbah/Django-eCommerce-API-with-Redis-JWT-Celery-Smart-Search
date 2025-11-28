@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ecommerce_api.core.api_standard_response import ApiResponse
 from orders.models import Order
 from .gateways import ZibalGateway
 from shipping.tasks import create_postex_shipment_task
@@ -32,19 +33,25 @@ class PaymentProcessAPIView(APIView):
     def post(self, request, *args, **kwargs):
         order_id = kwargs.get("order_id")
         if not order_id:
-            return Response({"error": "Order ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return ApiResponse.error(
+                message="Order ID is required.",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
 
         order = get_object_or_404(Order, order_id=order_id, user=request.user)
 
         if order.payment_status == Order.PaymentStatus.SUCCESS:
-            return Response({"message": "This order has already been paid."}, status=status.HTTP_400_BAD_REQUEST)
+            return ApiResponse.error(
+                message="This order has already been paid.",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
 
         # Check stock before creating payment request
         for item in order.items.all():
             if item.product.stock < item.quantity:
-                return Response(
-                    {"error": f"Insufficient stock for product: {item.product.name}"},
-                    status=status.HTTP_400_BAD_REQUEST,
+                return ApiResponse.error(
+                    message=f"Insufficient stock for product: {item.product.name}",
+                    status_code=status.HTTP_400_BAD_REQUEST
                 )
 
         callback_url = request.build_absolute_uri(reverse("payment:verify"))
@@ -61,9 +68,15 @@ class PaymentProcessAPIView(APIView):
             order.payment_track_id = response.get('trackId')
             order.save()
             payment_url = f"https://gateway.zibal.ir/start/{response.get('trackId')}"
-            return Response({"payment_url": payment_url}, status=status.HTTP_201_CREATED)
+            return ApiResponse.success(
+                data={"payment_url": payment_url},
+                status_code=status.HTTP_201_CREATED
+            )
         else:
-            return Response({"error": "Failed to create payment request."}, status=status.HTTP_400_BAD_REQUEST)
+            return ApiResponse.error(
+                message="Failed to create payment request.",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
 
 
 @extend_schema_view(
@@ -81,12 +94,18 @@ class PaymentVerifyAPIView(APIView):
     def get(self, request, *args, **kwargs):
         track_id = request.query_params.get('trackId')
         if not track_id:
-            return Response({"error": "trackId is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return ApiResponse.error(
+                message="trackId is required.",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             order = Order.objects.get(payment_track_id=track_id)
         except Order.DoesNotExist:
-            return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+            return ApiResponse.error(
+                message="Order not found.",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
 
         gateway = ZibalGateway()
         response = gateway.verify_payment(track_id)
@@ -98,9 +117,9 @@ class PaymentVerifyAPIView(APIView):
                     # Handle insufficient stock after payment (e.g., refund or notify admin)
                     order.payment_status = Order.PaymentStatus.FAILED
                     order.save()
-                    return Response(
-                        {"error": f"Insufficient stock for product: {item.product.name}. Payment will be refunded."},
-                        status=status.HTTP_400_BAD_REQUEST,
+                    return ApiResponse.error(
+                        message=f"Insufficient stock for product: {item.product.name}. Payment will be refunded.",
+                        status_code=status.HTTP_400_BAD_REQUEST
                     )
 
             # Decrement stock
@@ -116,8 +135,14 @@ class PaymentVerifyAPIView(APIView):
             # Create shipment asynchronously
             create_postex_shipment_task.delay(order.order_id)
 
-            return Response({"message": "Payment verified. Shipment creation is in progress."}, status=status.HTTP_200_OK)
+            return ApiResponse.success(
+                message="Payment verified. Shipment creation is in progress.",
+                status_code=status.HTTP_200_OK
+            )
         else:
             order.payment_status = Order.PaymentStatus.FAILED
             order.save()
-            return Response({"error": "Payment verification failed."}, status=status.HTTP_400_BAD_REQUEST)
+            return ApiResponse.error(
+                message="Payment verification failed.",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
