@@ -8,6 +8,7 @@ from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
+from ecommerce_api.core.api_standard_response import ApiResponse
 
 User = get_user_model()
 
@@ -16,7 +17,7 @@ class RequestOTP(APIView):
     def post(self, request):
         phone = request.data.get('phone')
         if not phone:
-            return Response({'error': 'Phone number is required'}, status=status.HTTP_400_BAD_REQUEST)
+            return ApiResponse.error(message='Phone number is required', status_code=status.HTTP_400_BAD_REQUEST)
 
         code = random.randint(100000, 999999)
         expires_at = timezone.now() + timedelta(minutes=5)
@@ -29,9 +30,9 @@ class RequestOTP(APIView):
         response = provider.send_otp(phone, code, template_id)
 
         if response.get('error'):
-            return Response({'error': 'Failed to send OTP'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return ApiResponse.error(message='Failed to send OTP', status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response({'message': 'OTP sent successfully'}, status=status.HTTP_200_OK)
+        return ApiResponse.success(message='OTP sent successfully', status_code=status.HTTP_200_OK)
 
 
 class VerifyOTP(APIView):
@@ -39,12 +40,12 @@ class VerifyOTP(APIView):
         phone = request.data.get('phone')
         code = request.data.get('code')
         if not phone or not code:
-            return Response({'error': 'Phone and code are required'}, status=status.HTTP_400_BAD_REQUEST)
+            return ApiResponse.error(message='Phone and code are required', status_code=status.HTTP_400_BAD_REQUEST)
 
         try:
             otp = OTPCode.objects.get(phone=phone, code=code, used=False, expires_at__gte=timezone.now())
         except OTPCode.DoesNotExist:
-            return Response({'error': 'Invalid or expired OTP'}, status=status.HTTP_400_BAD_REQUEST)
+            return ApiResponse.error(message='Invalid or expired OTP', status_code=status.HTTP_400_BAD_REQUEST)
 
         otp.used = True
         otp.save()
@@ -57,7 +58,8 @@ class VerifyOTP(APIView):
             user.save()
 
         refresh = RefreshToken.for_user(user)
-        return Response({
+        data = {
             'refresh': str(refresh),
             'access': str(refresh.access_token),
-        })
+        }
+        return ApiResponse.success(data=data, message='OTP verified successfully')
