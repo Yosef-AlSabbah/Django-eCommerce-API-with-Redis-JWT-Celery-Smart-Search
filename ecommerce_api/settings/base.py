@@ -316,6 +316,7 @@ SPECTACULAR_SETTINGS = {
 #      │                 Configure Redis Caching                  │
 #      ╰──────────────────────────────────────────────────────────╯
 # ──────────────── Set Up Redis As The Default Cache Backend For Django ────────────────
+REDIS_URL = env('REDIS_URL')
 CACHES = {
     "default": env.cache('REDIS_URL')
 }

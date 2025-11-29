@@ -4,11 +4,7 @@ from django.conf import settings
 from .models import Product
 
 # connect to redis
-r = redis.Redis(
-    host=settings.REDIS_HOST,
-    port=settings.REDIS_PORT,
-    db=settings.REDIS_DB
-)
+r = redis.from_url(settings.REDIS_URL)
 
 
 class Recommender:
