@@ -1,12 +1,33 @@
+version: '3.8'
+
 services:
+  web:
+    build: .
+    container_name: backend
+    entrypoint: /code/entrypoint.sh
+    command: >
+      sh -c "
+      gunicorn ecommerce_api.wsgi:application --bind 0.0.0.0:8000
+      "
+    volumes:
+      - .:/code
+      - static_volume:/code/staticfiles
+      - media_volume:/code/media
+    expose:
+      - 8000
+    env_file:
+      - .env
+    depends_on:
+      - database
+      - cache
+
   database:
     image: postgres:17-alpine
     container_name: database
-    restart: always
-    ports:
-      - "5432:5432"
     volumes:
       - database:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -20,55 +41,58 @@ services:
   cache:
     image: redis:8.0-alpine
     container_name: cache
-    restart: always
     ports:
       - "6379:6379"
 
-  web:
+  celery_worker:
     build: .
-    container_name: backend
-    command: [ "./wait-for-it.sh", "database:5432", "--",
-               "sh", "-c", "python manage.py migrate && python manage.py collectstatic --noinput && uvicorn ecommerce_api.asgi:application --host 0.0.0.0 --port 8000 --reload" ]
-    restart: always
+    container_name: celery_worker
+    command: celery -A ecommerce_api worker -l info
     volumes:
       - .:/code
-      - static_volume:/code/staticfiles
-      - media_volume:/code/media
-    ports:
-      - "8000:8000"
     env_file:
       - .env
     depends_on:
       - cache
       - database
 
-  stripe-cli:
-    image: stripe/stripe-cli:latest
-    container_name: stripe-cli
-    restart: "no"
+  celery_beat:
+    build: .
+    container_name: celery_beat
+    command: celery -A ecommerce_api beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/code
     env_file:
       - .env
-    environment:
-      - STRIPE_API_KEY=${STRIPE_SECRET_KEY}
-      - STRIPE_DEVICE_NAME=docker-stripe-cli
+    depends_on:
+      - cache
+      - database
+
+  flower:
+    build: .
+    container_name: flower
+    command: celery -A ecommerce_api flower --address=0.0.0.0 --port=5555
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
+    depends_on:
+      - cache
+      - celery_worker
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx
+    ports:
+      - "80:80"
     volumes:
-      - stripe_config:/root/.config/stripe
-    entrypoint: ["/bin/sh", "-c"]
-    command: >
-      "while ! nc -z web 8000; do
-        echo 'Waiting for web service on port 8000...';
-        sleep 2;
-      done;
-      echo 'Web service is ready!';
-      stripe login --api-key $${STRIPE_SECRET_KEY} &&
-      stripe listen --forward-to web:8000/payment/webhook/"
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/code/staticfiles
+      - media_volume:/code/media
     depends_on:
       - web
-    networks:
-      - default
 
 volumes:
   database:
   static_volume:
   media_volume:
-  stripe_config:
