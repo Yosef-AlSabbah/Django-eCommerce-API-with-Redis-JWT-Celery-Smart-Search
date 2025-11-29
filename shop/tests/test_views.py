@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
@@ -67,7 +68,9 @@ class ProductViewSetTest(APITestCase):
         response = self.client.get(self.list_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_retrieve_product(self):
+    @patch('shop.recommender.Recommender.suggest_products_for')
+    def test_retrieve_product(self, mock_suggest):
+        mock_suggest.return_value = []
         response = self.client.get(self.detail_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
