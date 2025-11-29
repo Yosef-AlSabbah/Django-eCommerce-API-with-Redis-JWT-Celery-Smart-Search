@@ -279,7 +279,7 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
         InStockFilterBackend,
         ProductSearchFilterBackend,
     ]
-    ordering_fields = [r'name', r'price', r'stock']
+    ordering_fields = [r'name', r'price', r'stock', r'created']
     lookup_field = r'slug'
 
     def get_permissions(self):
