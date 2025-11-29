@@ -33,7 +33,7 @@ class FilterTests(APITestCase):
         cls.product3.tags.add('programming', 'python', 'books')
 
         cls.product4 = Product.objects.create(
-            name='The Pragmatic Programmer', description='Another book about software development', price=45.00, stock=20,
+            name='The Pragmatic Programmer', description='A book about the art of programming', price=45.00, stock=20,
             category=cls.category2, user=cls.user, weight=1.2, length=25, width=20, height=4,
         )
         cls.product4.tags.add('programming', 'software', 'books')
@@ -85,8 +85,45 @@ class FilterTests(APITestCase):
         # 3 products are in stock
         self.assertEqual(len(response.data['data']), 3)
 
-    @unittest.skip("Search filter needs rework")
     def test_product_search_filter_backend(self):
+        # Search for "programming", which is in the description of product1 and name of product3/4
+        # Note: product3 is out of stock, so it won't be in the results.
         response = self.client.get(self.url, {'search': 'programming'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['data']), 2)
+        names = {item['name'] for item in response.data['data']}
+        self.assertEqual(names, {'Laptop', 'The Pragmatic Programmer'})
+
+    def test_product_search_filter_backend_no_results(self):
+        response = self.client.get(self.url, {'search': 'nonexistent'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['data']), 0)
+
+    def test_ordering_by_price_ascending(self):
+        response = self.client.get(self.url, {'ordering': 'price'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        prices = [item['price'] for item in response.data['data']]
+        # We expect prices to be sorted in ascending order.
+        # Note: product3 is out of stock, so it's not in the list.
+        # Expected order: Pragmatic Programmer (45.00), Smartphone (800.00), Laptop (1200.00)
+        self.assertEqual(prices, ['45.00', '800.00', '1200.00'])
+
+    def test_ordering_by_price_descending(self):
+        response = self.client.get(self.url, {'ordering': '-price'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        prices = [item['price'] for item in response.data['data']]
+        # Expected order: Laptop (1200.00), Smartphone (800.00), Pragmatic Programmer (45.00)
+        self.assertEqual(prices, ['1200.00', '800.00', '45.00'])
+
+    def test_ordering_by_created_ascending(self):
+        response = self.client.get(self.url, {'ordering': 'created'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Assuming the order of creation is product1, product2, product4 (product3 is out of stock)
+        names = [item['name'] for item in response.data['data']]
+        self.assertEqual(names, ['Laptop', 'Smartphone', 'The Pragmatic Programmer'])
+
+    def test_ordering_by_created_descending(self):
+        response = self.client.get(self.url, {'ordering': '-created'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = [item['name'] for item in response.data['data']]
+        self.assertEqual(names, ['The Pragmatic Programmer', 'Smartphone', 'Laptop'])
