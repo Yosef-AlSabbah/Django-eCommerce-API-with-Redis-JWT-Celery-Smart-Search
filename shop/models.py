@@ -20,6 +20,8 @@ class SluggedModel(models.Model):
 
 
 class Category(SluggedModel):
+    attributes = models.ManyToManyField('Attribute', blank=True, related_name='categories')
+
     class Meta:
         verbose_name = "Category"
         verbose_name_plural = "Categories"
@@ -73,10 +75,6 @@ class Product(SluggedModel):
     objects = models.Manager()
     in_stock = InStockManager()
     tags = TaggableManager(through=CustomTaggedItem)
-    weight = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0.0)])
-    length = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0.0)])
-    width = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0.0)])
-    height = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0.0)])
 
     class Meta:
         verbose_name = "Product"
@@ -171,3 +169,27 @@ class Review(models.Model):
 
     def __str__(self):
         return f"Review by {self.user} for {self.product} - {self.rating} stars"
+
+
+class Attribute(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
+class ProductAttribute(models.Model):
+    product = models.ForeignKey(Product, related_name='attributes', on_delete=models.CASCADE)
+    attribute = models.ForeignKey(Attribute, on_delete=models.CASCADE)
+    value = models.JSONField()
+
+    class Meta:
+        unique_together = ('product', 'attribute')
+        indexes = [
+            models.Index(fields=['product']),
+            models.Index(fields=['attribute']),
+        ]
+
+    def __str__(self):
+        return f"{self.product.name} - {self.attribute.name}: {self.value}"

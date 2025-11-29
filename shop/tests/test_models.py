@@ -1,3 +1,4 @@
+
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -39,30 +40,26 @@ class ProductModelTest(TestCase):
             stock=5,
             category=self.category,
             user=self.user,
-            weight=1.0,
-            length=1.0,
-            width=1.0,
-            height=1.0
         )
         self.assertEqual(product.name, 'Test Product')
         self.assertTrue(product.slug.startswith('test-product'))
 
     def test_in_stock_manager(self):
         product1 = Product.objects.create(
-            name='Product 1', price=10, stock=5, category=self.category, user=self.user, weight=1, length=1, width=1, height=1)
+            name='Product 1', price=10, stock=5, category=self.category, user=self.user)
         product2 = Product.objects.create(
-            name='Product 2', price=20, stock=0, category=self.category, user=self.user, weight=1, length=1, width=1, height=1)
+            name='Product 2', price=20, stock=0, category=self.category, user=self.user)
         self.assertIn(product1, Product.in_stock.all())
         self.assertNotIn(product2, Product.in_stock.all())
 
     def test_product_str(self):
         product = Product.objects.create(
-            name='Test Product', price=10, stock=5, category=self.category, user=self.user, weight=1, length=1, width=1, height=1)
+            name='Test Product', price=10, stock=5, category=self.category, user=self.user)
         self.assertEqual(str(product), f'Product: Test Product (ID: {product.product_id})')
 
     def test_get_absolute_url(self):
         product = Product.objects.create(
-            name='Test Product', price=10, stock=5, category=self.category, user=self.user, weight=1, length=1, width=1, height=1)
+            name='Test Product', price=10, stock=5, category=self.category, user=self.user)
         self.assertEqual(product.get_absolute_url(), f'/api/v1/products/{product.slug}/')
 
 
@@ -77,10 +74,6 @@ class ReviewModelTest(TestCase):
             stock=5,
             category=self.category,
             user=self.user1,
-            weight=1.0,
-            length=1.0,
-            width=1.0,
-            height=1.0
         )
         self.order = Order.objects.create(user=self.user1)
         OrderItem.objects.create(order=self.order, product=self.product, quantity=1)

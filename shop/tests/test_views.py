@@ -1,10 +1,11 @@
+
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from shop.models import Category, Product, Review
+from shop.models import Category, Product, Review, Attribute, ProductAttribute
 from orders.models import Order, OrderItem
 
 User = get_user_model()
@@ -16,6 +17,8 @@ class CategoryViewSetTest(APITestCase):
         self.user = User.objects.create_user(username='testuser', email='test@example.com', password='password')
         self.admin_user = User.objects.create_superuser(username='admin', email='admin@example.com', password='password')
         self.category = Category.objects.create(name='Test Category')
+        self.attribute = Attribute.objects.create(name='Color')
+        self.category.attributes.add(self.attribute)
         self.list_url = reverse('api-v1:category-list')
         self.detail_url = reverse('api-v1:category-detail', kwargs={'slug': self.category.slug})
 
@@ -26,6 +29,14 @@ class CategoryViewSetTest(APITestCase):
     def test_retrieve_category(self):
         response = self.client.get(self.detail_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_category_detail_contains_attributes(self):
+        response = self.client.get(self.detail_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('attributes', response.data)
+        self.assertEqual(len(response.data['attributes']), 1)
+        self.assertEqual(response.data['attributes'][0]['name'], 'Color')
+
 
     def test_create_category_as_admin(self):
         self.client.force_authenticate(user=self.admin_user)
@@ -58,8 +69,7 @@ class ProductViewSetTest(APITestCase):
         self.user2 = User.objects.create_user(username='user2', email='user2@example.com', password='password')
         self.category = Category.objects.create(name='Test Category')
         self.product = Product.objects.create(
-            name='Test Product', price=10, stock=5, category=self.category, user=self.user1,
-            weight=1, length=1, width=1, height=1
+            name='Test Product', description='A test product', price=10, stock=5, category=self.category, user=self.user1
         )
         self.list_url = reverse('api-v1:product-list')
         self.detail_url = reverse('api-v1:product-detail', kwargs={'slug': self.product.slug})
@@ -78,10 +88,17 @@ class ProductViewSetTest(APITestCase):
         self.client.force_authenticate(user=self.user1)
         data = {
             'name': 'New Product', 'description': 'A new product', 'price': 20.00, 'stock': 10,
-            'category': self.category.slug, 'weight': 1, 'length': 1, 'width': 1, 'height': 1
+            'category': self.category.slug,
+            'attributes_data': [
+                {'attribute_name': 'Weight', 'value': '1kg'},
+                {'attribute_name': 'Color', 'value': 'Blue'}
+            ]
         }
-        response = self.client.post(self.list_url, data)
+        response = self.client.post(self.list_url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Product.objects.filter(name='New Product').exists())
+        new_product = Product.objects.get(name='New Product')
+        self.assertEqual(new_product.attributes.count(), 2)
 
     def test_update_product_by_owner(self):
         self.client.force_authenticate(user=self.user1)
@@ -110,8 +127,7 @@ class ReviewViewSetTest(APITestCase):
         self.user2 = User.objects.create_user(username='user2', email='user2@example.com', password='password')
         self.category = Category.objects.create(name='Test Category')
         self.product = Product.objects.create(
-            name='Test Product', price=10, stock=5, category=self.category, user=self.user1,
-            weight=1, length=1, width=1, height=1
+            name='Test Product', description='A test product', price=10, stock=5, category=self.category, user=self.user1
         )
         self.order = Order.objects.create(user=self.user1)
         OrderItem.objects.create(order=self.order, product=self.product, quantity=1)
@@ -133,7 +149,6 @@ class ReviewViewSetTest(APITestCase):
         data = {'rating': 4, 'comment': 'Good product.'}
         response = self.client.post(self.list_url, data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
 
     def test_create_review_by_non_purchaser(self):
         self.client.force_authenticate(user=self.user2)

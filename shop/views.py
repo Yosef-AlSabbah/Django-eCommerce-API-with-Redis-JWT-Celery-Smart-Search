@@ -269,7 +269,7 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
     Supports listing, retrieving, creating, updating, and deleting products.
     Includes filtering, ordering, and recommendations.
     """
-    queryset = Product.objects.prefetch_related(r'category', r'tags')
+    queryset = Product.objects.prefetch_related(r'category', r'tags', r'attributes__attribute')
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrStaff]
     serializer_class = ProductSerializer
     filterset_class = ProductFilter
@@ -405,7 +405,7 @@ class CategoryViewSet(PaginationMixin, viewsets.ModelViewSet):
     Allows listing and retrieving categories for all users.
     Creation, update, and deletion require admin privileges.
     """
-    queryset = Category.objects.all()
+    queryset = Category.objects.prefetch_related('attributes').all()
     permission_classes = [permissions.AllowAny]
     serializer_class = CategorySerializer
     lookup_field = r'slug'

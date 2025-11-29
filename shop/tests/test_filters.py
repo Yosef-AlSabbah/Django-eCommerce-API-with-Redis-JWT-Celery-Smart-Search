@@ -1,3 +1,4 @@
+
 import unittest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
@@ -16,25 +17,25 @@ class FilterTests(APITestCase):
 
         cls.product1 = Product.objects.create(
             name='Laptop', description='A powerful laptop for programming', price=1200.00, stock=10,
-            category=cls.category1, user=cls.user, weight=2.5, length=40, width=30, height=5,
+            category=cls.category1, user=cls.user,
         )
         cls.product1.tags.add('tech', 'computers')
 
         cls.product2 = Product.objects.create(
             name='Smartphone', description='A modern smartphone with a great camera', price=800.00, stock=5,
-            category=cls.category1, user=cls.user, weight=0.5, length=15, width=7, height=1,
+            category=cls.category1, user=cls.user,
         )
         cls.product2.tags.add('tech', 'mobile')
 
         cls.product3 = Product.objects.create(
             name='Python Crash Course', description='A book about Python programming', price=30.00, stock=0,
-            category=cls.category2, user=cls.user, weight=1, length=25, width=20, height=3,
+            category=cls.category2, user=cls.user,
         )
         cls.product3.tags.add('programming', 'python', 'books')
 
         cls.product4 = Product.objects.create(
             name='The Pragmatic Programmer', description='A book about the art of programming', price=45.00, stock=20,
-            category=cls.category2, user=cls.user, weight=1.2, length=25, width=20, height=4,
+            category=cls.category2, user=cls.user,
         )
         cls.product4.tags.add('programming', 'software', 'books')
 
