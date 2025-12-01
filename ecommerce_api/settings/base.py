@@ -1,17 +1,21 @@
+import environ
 from datetime import timedelta
 from pathlib import Path
 
-from decouple import config
 from django.urls import reverse_lazy
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+env = environ.Env()
+environ.Env.read_env(BASE_DIR / '.env')
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-nu7823*j4_cdw_2(_z*@!ki1!s&-jsolwfj@b6bk!^621a&4f9'
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -83,9 +87,12 @@ CUSTOM_APPS = [
     'cart.apps.CartConfig',  # Cart application for managing shopping carts
     'orders.apps.OrdersConfig',  # Orders application for managing customer orders
     'coupons.apps.CouponsConfig',  # Coupons application for discounts
+
     'chat.apps.ChatConfig',  # Chat application for real-time communication
     'payment.apps.PaymentConfig',  # Payment application for processing transactions
     'account.apps.AccountConfig',  # Account application for user management
+    'shipping.apps.ShippingConfig',
+    'sms.apps.SmsConfig',
 ]
 
 # Combine all applications into the INSTALLED_APPS setting
@@ -131,14 +138,7 @@ WSGI_APPLICATION = 'ecommerce_api.wsgi.application'
 #      ╰──────────────────────────────────────────────────────────╯
 # ──────── This Section Configures The Database Connection For The Application ─────────
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('POSTGRES_DB'),
-        'USER': config('POSTGRES_USER'),
-        'PASSWORD': config('POSTGRES_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT'),
-    }
+    'default': env.db(),
 }
 
 # Password validation
@@ -316,14 +316,9 @@ SPECTACULAR_SETTINGS = {
 #      │                 Configure Redis Caching                  │
 #      ╰──────────────────────────────────────────────────────────╯
 # ──────────────── Set Up Redis As The Default Cache Backend For Django ────────────────
+REDIS_URL = env('REDIS_URL')
 CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"redis://{config('REDIS_HOST')}:6379/1",  # use 'cache' service name
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
-    }
+    "default": env.cache('REDIS_URL')
 }
 
 #      ╭──────────────────────────────────────────────────────────╮
@@ -334,7 +329,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [(config('REDIS_HOST'), 6379)],  # use 'cache' service name
+            'hosts': [env('REDIS_URL')],
         },
     },
 }
@@ -345,40 +340,34 @@ INTERNAL_IPS = [
     'localhost',
 ]
 
-REDIS_HOST = config('REDIS_HOST')
-REDIS_PORT = config('REDIS_PORT')
-REDIS_DB = 2
-
 CART_SESSION_ID = 'cart'
 
 #      ╭──────────────────────────────────────────────────────────╮
 #      │                   Email Configuration                    │
 #      ╰──────────────────────────────────────────────────────────╯
 # ━━ THIS SECTION CONFIGURES THE EMAIL BACKEND FOR SENDING EMAILS IN THE APPLICATION. ━━
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-EMAIL_HOST_USER = config('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+EMAIL_CONFIG = env.email_url('EMAIL_URL')
+vars().update(EMAIL_CONFIG)
 
 SITE_ID = 1
 
 ASGI_APPLICATION = 'ecommerce_api.asgi.application'
 
-STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY')
-STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY')
-STRIPE_API_VERSION = '2024-04-10'
-STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET')
+SMS_IR_OTP_TEMPLATE_ID = env('SMS_IR_OTP_TEMPLATE_ID', default=123456)
+
+POSTEX_SENDER_NAME = env('POSTEX_SENDER_NAME', default='Your Company Name')
+POSTEX_SENDER_PHONE = env('POSTEX_SENDER_PHONE', default='Your Company Phone')
+POSTEX_SENDER_ADDRESS = env('POSTEX_SENDER_ADDRESS', default='Your Company Address')
+POSTEX_SENDER_POSTAL_CODE = env('POSTEX_SENDER_POSTAL_CODE', default='Your Company Postal Code')
+POSTEX_FROM_CITY_CODE = env.int('POSTEX_FROM_CITY_CODE', default=1)
+POSTEX_SERVICE_TYPE = env('POSTEX_SERVICE_TYPE', default='standard')
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'social_core.backends.google.GoogleOAuth2',
 ]
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = config('GOOGLE_OAUTH2_KEY')
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = config('GOOGLE_OAUTH2_SECRET')
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = env('GOOGLE_OAUTH2_KEY')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = env('GOOGLE_OAUTH2_SECRET')
 
 DJOSER = {
     'HIDE_USERS': True,
@@ -422,14 +411,14 @@ SWAGGER_SETTINGS = {
     'USE_SESSION_AUTH': False,
 }
 
-DOMAIN = config('DOMAIN')
-SITE_NAME = config('SITE_NAME')
+DOMAIN = env('DOMAIN')
+SITE_NAME = env('SITE_NAME')
 
 TAGGIT_CASE_INSENSITIVE = True
 
 # Celery Configuration using Redis
-CELERY_BROKER_URL = f"redis://{config('REDIS_HOST', default='cache')}:{config('REDIS_PORT', default='6379')}/0"
-CELERY_RESULT_BACKEND = f"redis://{config('REDIS_HOST', default='cache')}:{config('REDIS_PORT', default='6379')}/0"
+CELERY_BROKER_URL = env('CELERY_BROKER_URL')
+CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'

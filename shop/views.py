@@ -135,7 +135,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 from orders.models import Order
                 completed_order_exists = product.order_items.filter(
                     order__user=self.request.user,
-                    order__status=Order.Status.COMPLETED
+                    order__status=Order.Status.PAID
                 ).exists()
 
                 if not completed_order_exists:
@@ -269,7 +269,7 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
     Supports listing, retrieving, creating, updating, and deleting products.
     Includes filtering, ordering, and recommendations.
     """
-    queryset = Product.objects.prefetch_related(r'category', r'tags')
+    queryset = Product.objects.prefetch_related(r'category', r'tags', r'attributes__attribute')
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrStaff]
     serializer_class = ProductSerializer
     filterset_class = ProductFilter
@@ -279,7 +279,7 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
         InStockFilterBackend,
         ProductSearchFilterBackend,
     ]
-    ordering_fields = [r'name', r'price', r'stock']
+    ordering_fields = [r'name', r'price', r'stock', r'created']
     lookup_field = r'slug'
 
     def get_permissions(self):
@@ -291,47 +291,6 @@ class ProductViewSet(PaginationMixin, viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return ProductDetailSerializer
         return super().get_serializer_class()
-
-    @method_decorator(cache_page(60 * 5, key_prefix=r'product_list'))
-    @method_decorator(vary_on_headers(r'Authorization'))
-    def list(self, request, *args, **kwargs):
-        try:
-            logger.info("Listing products for user id: %s", request.user.id)
-            queryset = self.get_queryset()
-            tag_slug = request.query_params.get(r'tag')
-            # Removed manual category filtering - now handled by ProductFilter
-            if tag_slug:
-                tag = get_object_or_404(Tag, slug=tag_slug)
-                queryset = queryset.filter(tags__in=[tag])
-
-            recommender = Recommender()
-            cart = Cart(request)
-            recommendation_base = []
-
-            # Safely extract products from cart
-            try:
-                for item in cart:
-                    if 'product' in item:
-                        recommendation_base.append(item['product'])
-            except Exception as e:
-                logger.warning(f"Error accessing cart items: {e}")
-                # Continue with empty recommendation_base if cart fails
-
-            if request.user.is_authenticated:
-                recent_order_products = Product.objects.filter(order_items__order__user=request.user).distinct()[:20]
-                recommendation_base.extend(recent_order_products)
-            recommended_products = []
-            if recommendation_base:
-                recommended_products = recommender.suggest_products_for(recommendation_base, max_results=60)
-            if len(recommended_products) < 20:
-                fallback_random_products = list(Product.objects.all().order_by(r'?')[:40])
-                recommended_products.extend(fallback_random_products)
-            recommended_ids = [product.product_id for product in recommended_products]
-            self.queryset = queryset.filter(product_id__in=recommended_ids)
-            return super().list(request, *args, **kwargs)
-        except Exception as e:
-            logger.error("Error listing products: %s", e, exc_info=True)
-            raise
 
     def perform_create(self, serializer):
         try:
@@ -446,7 +405,7 @@ class CategoryViewSet(PaginationMixin, viewsets.ModelViewSet):
     Allows listing and retrieving categories for all users.
     Creation, update, and deletion require admin privileges.
     """
-    queryset = Category.objects.all()
+    queryset = Category.objects.prefetch_related('attributes').all()
     permission_classes = [permissions.AllowAny]
     serializer_class = CategorySerializer
     lookup_field = r'slug'

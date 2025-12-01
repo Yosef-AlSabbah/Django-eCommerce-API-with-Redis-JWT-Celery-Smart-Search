@@ -117,3 +117,17 @@ class UserAccount(AbstractUser, PermissionsMixin):
         verbose_name = _('user')
         verbose_name_plural = _('users')
         ordering = ['-pk']
+
+
+class Address(models.Model):
+    user = models.ForeignKey(UserAccount, related_name='addresses', on_delete=models.CASCADE)
+    province = models.CharField(max_length=100)
+    city = models.CharField(max_length=100)
+    city_code = models.IntegerField(null=True, blank=True)
+    postal_code = models.CharField(max_length=10)
+    full_address = models.TextField()
+    receiver_name = models.CharField(max_length=100)
+    receiver_phone = models.CharField(max_length=15)
+
+    def __str__(self):
+        return f'{self.full_address}, {self.city}, {self.province}'

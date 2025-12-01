@@ -1,14 +1,13 @@
 from logging import getLogger
 
 from django.shortcuts import get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from drf_spectacular.utils import (
     extend_schema,
     OpenApiResponse,
     extend_schema_view,
 )
-from rest_framework import status, mixins, viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -19,7 +18,6 @@ from .serializers import CartSerializer, AddToCartSerializer
 logger = getLogger(__name__)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 @extend_schema_view(
     list=extend_schema(
         operation_id="cart_retrieve_list",
@@ -53,7 +51,7 @@ logger = getLogger(__name__)
         },
     ),
 )
-class CartViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+class CartViewSet(viewsets.ViewSet):
     """
     A viewset for viewing and editing cart items.
     """
@@ -132,8 +130,8 @@ class CartViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             data = serializer.validated_data
             cart.add(
                 product=product,
-                quantity=data['quantity'],
-                override_quantity=data['override']
+                quantity=data.get('quantity', 1),
+                override_quantity=data.get('override', False)
             )
             return Response(
                 {'message': 'Product added/updated in cart'},
@@ -141,10 +139,7 @@ class CartViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             )
         else:
             logger.error(f"Invalid data provided in cart post: {serializer.errors}")
-            return Response(
-                {'error': 'Invalid data provided', 'details': serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['delete'], url_path='remove')
     @extend_schema(
@@ -178,3 +173,26 @@ class CartViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         except Exception as e:
             logger.error(f"Error removing product from cart: {e}", exc_info=True)
             raise
+
+    @action(detail=False, methods=['delete'], url_path='clear')
+    @extend_schema(
+        operation_id="cart_clear",
+        description="Clear all items from the cart.",
+        tags=["Cart"],
+        responses={
+            204: OpenApiResponse(description="Cart cleared successfully."),
+        },
+    )
+    def clear_cart(self, request):
+        """
+        Clear all items from the cart.
+
+        Args:
+            request: The HTTP request object.
+
+        Returns:
+            Response: An empty response with a 204 status code.
+        """
+        cart = Cart(request)
+        cart.clear()
+        return Response(status=status.HTTP_204_NO_CONTENT)

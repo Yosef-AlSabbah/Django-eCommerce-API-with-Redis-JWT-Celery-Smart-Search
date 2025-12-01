@@ -123,7 +123,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         now = timezone.now()
 
         # Determine recipient
-        if self.user == self.product.seller:
+        if self.user == self.product.user:
             # Seller is sending - recipient should be the buyer
             recipient_username = text_data_json.get('recipient')
             if not recipient_username:
@@ -142,7 +142,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 return
         else:
             # Buyer is sending - recipient is the seller
-            recipient = self.product.seller
+            recipient = self.product.user
 
         # Send message to room group
         await self.channel_layer.group_send(

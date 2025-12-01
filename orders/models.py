@@ -7,24 +7,47 @@ from django.db import models
 
 from coupons.models import Coupon
 from shop.models import Product
+from account.models import Address
 
 User = get_user_model()
 
 
 class Order(models.Model):
     class Status(models.TextChoices):
-        PENDING = 'PE', 'Pending'
-        COMPLETED = 'CO', 'Completed'
-        CANCELLED = 'CA', 'Cancelled'
+        PENDING = 'pending', 'Pending'
+        PAID = 'paid', 'Paid'
+        PROCESSING = 'processing', 'Processing'
+        SHIPPED = 'shipped', 'Shipped'
+        DELIVERED = 'delivered', 'Delivered'
+        CANCELED = 'canceled', 'Canceled'
+
+    class PaymentStatus(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        SUCCESS = 'success', 'Success'
+        FAILED = 'failed', 'Failed'
 
     order_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, related_name='orders', on_delete=models.SET_NULL, null=True)
-    quantity = models.IntegerField()
+    address = models.ForeignKey(Address, related_name='orders', on_delete=models.SET_NULL, null=True, blank=True)
     order_date = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
-    coupon = models.ForeignKey(Coupon, related_name='orders', on_delete=models.SET_NULL, null=True)
-    stripe_id = models.CharField(max_length=255, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    coupon = models.ForeignKey(Coupon, related_name='orders', on_delete=models.SET_NULL, null=True, blank=True)
+    currency = models.CharField(max_length=3, default='IRT')
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+    payment_gateway = models.CharField(max_length=50, blank=True)
+    payment_ref_id = models.CharField(max_length=100, blank=True)
+    payment_status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
+    payment_track_id = models.CharField(max_length=100, blank=True)
+    postex_shipment_id = models.CharField(max_length=100, blank=True)
+    shipping_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+    shipping_label_url = models.URLField(blank=True)
+    shipping_provider = models.CharField(max_length=50, blank=True)
+    shipping_status = models.CharField(max_length=50, blank=True)
+    shipping_tracking_code = models.CharField(max_length=100, blank=True)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+    tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+    total_payable = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
 
     class Meta:
         verbose_name = "Order"
@@ -52,7 +75,6 @@ class Order(models.Model):
             Decimal: The discount amount. Returns 0 if no coupon is applied.
         """
         total_cost = self.get_total_cost_before_discount()
-
         if self.coupon:
             return total_cost * (self.coupon.discount / Decimal(100))
         return Decimal(0)
@@ -68,17 +90,18 @@ class Order(models.Model):
         total_cost = self.get_total_cost_before_discount()
         return total_cost - self.get_discount()
 
-    def get_stripe_url(self):
-        if not self.stripe_id:
-            # no payment associated
-            return ''
-        if '_test_' in settings.STRIPE_SECRET_KEY:
-            # Stripe path for test payments
-            path = '/test/'
-        else:
-            # Stripe path for real payments
-            path = '/'
-            return f'https://dashboard.stripe.com{path}payments/{self.stripe_id}'
+    def calculate_total_payable(self):
+        """
+        Calculates the final amount to be paid by the user.
+        """
+        self.subtotal = self.get_total_cost_before_discount()
+        self.discount_amount = self.get_discount()
+        # Assuming tax and shipping are calculated elsewhere and set on the instance
+        # For now, let's represent the calculation logic.
+        # In a real scenario, tax_amount and shipping_cost would be determined by other services or logic.
+        total = self.subtotal - self.discount_amount + self.shipping_cost + self.tax_amount
+        self.total_payable = total
+        return self.total_payable
 
     def __str__(self):
         return f"Order: {self.order_id} by {self.user.username if self.user else 'Deleted User'}"
@@ -100,12 +123,6 @@ class OrderItem(models.Model):
 
     @property
     def price(self):
-        """
-        Calculate the total price for the order item.
-
-        Returns:
-            Decimal: The total price, which is the product of the item's price and quantity.
-        """
         return self.product.price * self.quantity
 
     def __str__(self):

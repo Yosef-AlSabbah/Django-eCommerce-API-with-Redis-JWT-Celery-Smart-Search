@@ -9,3 +9,9 @@ __pycache__/
 *.DS_Store
 *.sock
 .env
+
+# Log files
+*.log
+
+# Database files
+*.rdb

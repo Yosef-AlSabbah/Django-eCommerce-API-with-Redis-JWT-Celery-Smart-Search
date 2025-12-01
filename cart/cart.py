@@ -130,16 +130,21 @@ class Cart:
                 pass
         return None
 
-    def get_discount(self):
+    def get_discount(self, coupon=None):
         """
-        Calculate the discount amount based on the applied coupon.
+        Calculate the discount amount based on the provided coupon.
+        If no coupon is provided, it uses the coupon from the session.
+
+        Args:
+            coupon (Coupon, optional): The coupon object to apply. Defaults to None.
 
         Returns:
             Decimal: The discount amount to be subtracted from the total price.
         """
-        if self.coupon:
+        applied_coupon = coupon if coupon is not None else self.coupon
+        if applied_coupon:
             return (
-                    self.coupon.discount / Decimal(100)
+                applied_coupon.discount / Decimal(100)
             ) * self.get_total_price()
         return Decimal(0)
 
